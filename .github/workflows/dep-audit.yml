@@ -1,0 +1,49 @@
+name: Dependency Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, Mondays at 06:00 UTC — surfaces newly-disclosed advisories
+    # against the frozen lockfile without waiting for the next PR.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Husky installs git hooks in `prepare`, which has nothing to hook into on a
+# runner and fails when the repo is checked out without hooks enabled.
+env:
+  HUSKY: 0
+
+jobs:
+  # Blocking gate: only the dependencies that actually ship to users
+  # (`dependencies`, not `devDependencies`). A known-vulnerable runtime dep
+  # should fail the build. `bun audit --prod` always exits 0, so it is not a
+  # gate; `bun audit --production --json` exits non-zero with a JSON report on
+  # a shipped-dep advisory (and prints `{}` with exit 0 when the tree is clean).
+  prod-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Audit production dependencies
+        run: bun run audit:prod
+
+  # Informational: the full tree including devDependencies (semantic-release,
+  # vitest, etc.). These never ship to users, so an advisory here should not
+  # block a PR — it's surfaced for visibility and triage. Non-blocking.
+  full-audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Audit all dependencies (incl. dev)
+        run: bun run audit
