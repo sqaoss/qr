@@ -1,0 +1,14 @@
+{
+  "name": "sqaoss",
+  "owner": {
+    "name": "SQA & Automation SRL"
+  },
+  "description": "Open-source tools from SQA & Automation SRL.",
+  "plugins": [
+    {
+      "name": "qr",
+      "source": "./",
+      "description": "Generate QR codes (PNG/SVG) from code, the terminal, or AI agents (MCP + skill)."
+    }
+  ]
+}
