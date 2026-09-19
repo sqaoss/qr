@@ -16,7 +16,7 @@ import {
 } from '@modelcontextprotocol/server/stdio'
 import { z } from 'zod'
 import { type BatchItem, writeBatch } from './batch.js'
-import { generate, writeQr } from './core.js'
+import { generate, QrError, writeQr } from './core.js'
 import { VERSION } from './version.js'
 
 const INSTRUCTIONS =
@@ -203,7 +203,8 @@ function assertResolvablePath(path: string): void {
   if (resolve(path) === path) return
   const cwd = process.cwd()
   if (cwd === parse(cwd).root) {
-    throw new QrOptionError(
+    throw new QrError(
+      'INVALID_OPTION',
       `the working directory is the filesystem root, so ${JSON.stringify(path)} cannot be resolved safely; pass an absolute path`,
     )
   }
@@ -211,19 +212,10 @@ function assertResolvablePath(path: string): void {
 
 function assertImageExtension(path: string): void {
   if (!/\.(?:png|svg)$/i.test(path)) {
-    throw new QrOptionError(
+    throw new QrError(
+      'INVALID_OPTION',
       `path must end in .png or .svg, got ${JSON.stringify(path)}`,
     )
-  }
-}
-
-/** A local `INVALID_OPTION` raiser, so `run()` sees the same coded shape. */
-class QrOptionError extends Error {
-  readonly code = 'INVALID_OPTION'
-
-  constructor(message: string) {
-    super(message)
-    this.name = 'QrOptionError'
   }
 }
 
@@ -242,7 +234,8 @@ export const tools: ToolDef[] = [
       run(async () => {
         const result = await generate(args.data, args)
         if (result.info.size > MAX_INLINE_SIZE) {
-          throw new QrOptionError(
+          throw new QrError(
+            'INVALID_OPTION',
             `the image would be ${result.info.size}px wide, above the ${MAX_INLINE_SIZE}px inline limit; lower scale or margin, or use qr_save to write it to a file instead`,
           )
         }
