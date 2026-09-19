@@ -194,16 +194,24 @@ function relativeOut(out: string, outDir: string): string {
       `out must be a relative path, got ${out}`,
     )
   }
-  const target = resolve(outDir, out)
-  if (target === outDir || !target.startsWith(outDir + sep)) {
+  // `relative` rather than a string prefix: a root outDir is its own separator,
+  // so `outDir + sep` would be "//" and reject every name inside it.
+  const rel = relative(outDir, resolve(outDir, out))
+  if (
+    rel === '' ||
+    isAbsolute(rel) ||
+    rel === '..' ||
+    rel.startsWith(`..${sep}`)
+  ) {
     throw new QrError(
       'INVALID_BATCH',
       `out must stay inside the output directory, got ${out}`,
     )
   }
-  return relative(outDir, target)
+  return rel
 }
 
+/** Returns the name to use; the caller reserves it once the write succeeds. */
 function uniqueName(name: string, taken: Set<string>): string {
   const ext = extname(name)
   const base = name.slice(0, name.length - ext.length)
@@ -213,7 +221,6 @@ function uniqueName(name: string, taken: Set<string>): string {
     candidate = `${base}-${suffix}${ext}`
     suffix += 1
   }
-  taken.add(candidate.toLowerCase())
   return candidate
 }
 
@@ -238,14 +245,14 @@ export async function writeBatch(
         out === undefined
           ? fileNameFor(data, style.format ?? DEFAULTS.format)
           : relativeOut(out, outDir)
-      const { path, ...info } = await writeQr(
-        data,
-        join(outDir, uniqueName(wanted, taken)),
-        {
-          ...style,
-          force: o.force,
-        },
-      )
+      const name = uniqueName(wanted, taken)
+      const { path, ...info } = await writeQr(data, join(outDir, name), {
+        ...style,
+        force: o.force,
+      })
+      // Reserved only now: a name claimed by a failed item would push the next
+      // item onto a -2 suffix with nothing at the original name.
+      taken.add(name.toLowerCase())
       results.push({ ok: true, data, path, info })
     } catch (err) {
       const qrError =

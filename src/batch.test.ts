@@ -1,9 +1,9 @@
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import jsQR from 'jsqr'
 import { PNG } from 'pngjs'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { fileNameFor, kindFromPath, parseBatch, writeBatch } from './batch.js'
 import { QrError } from './core.js'
 
@@ -344,6 +344,21 @@ describe('writeBatch', () => {
     expect(await readdir(outDir)).toEqual(['sfcromania-ro-semneaza-pactul.png'])
   })
 
+  it('leaves the name of a failed item free for the next one', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch(
+      [
+        { data: 'https://example.com/a', scale: 0 },
+        { data: 'https://example.com/a' },
+      ],
+      { outDir },
+    )
+    expect(
+      report.results.map((r) => (r.ok ? basename(r.path) : r.error.code)),
+    ).toEqual(['INVALID_OPTION', 'example-com-a.png'])
+    expect(await readdir(outDir)).toEqual(['example-com-a.png'])
+  })
+
   it('rejects more than 1000 items outright', async () => {
     const outDir = await tempDir()
     const items = Array.from({ length: 1001 }, (_, i) => ({
@@ -353,5 +368,49 @@ describe('writeBatch', () => {
       code: 'INVALID_BATCH',
     })
     expect(await readdir(outDir)).toEqual([])
+  })
+})
+
+describe('writeBatch with the filesystem root as outDir', () => {
+  afterEach(() => {
+    vi.doUnmock('./core.js')
+    vi.resetModules()
+  })
+
+  // The write is stubbed because the real one would need root privileges, and
+  // the point under test is the containment check, not the write.
+  it('treats a relative out as inside the root', async () => {
+    const written: string[] = []
+    vi.resetModules()
+    vi.doMock('./core.js', async () => {
+      const actual =
+        await vi.importActual<typeof import('./core.js')>('./core.js')
+      return {
+        ...actual,
+        writeQr: (_data: string, path: string) => {
+          written.push(path)
+          return Promise.resolve({
+            path,
+            format: 'png' as const,
+            version: 5,
+            modules: 37,
+            size: 720,
+            errorCorrection: 'H' as const,
+          })
+        },
+      }
+    })
+    const mod = await import('./batch.js')
+    const root = resolve('/')
+
+    const report = await mod.writeBatch([{ data: SFC, out: 'a.png' }], {
+      outDir: root,
+    })
+
+    expect(report.results[0]).toMatchObject({
+      ok: true,
+      path: join(root, 'a.png'),
+    })
+    expect(written).toEqual([join(root, 'a.png')])
   })
 })
