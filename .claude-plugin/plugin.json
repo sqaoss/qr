@@ -1,0 +1,26 @@
+{
+  "name": "qr",
+  "description": "Generate QR codes (PNG/SVG) from code, the terminal, or AI agents (MCP + skill).",
+  "author": {
+    "name": "SQA & Automation SRL"
+  },
+  "homepage": "https://github.com/sqaoss/qr",
+  "repository": "https://github.com/sqaoss/qr",
+  "license": "MIT",
+  "keywords": [
+    "qr",
+    "qr-code",
+    "qrcode",
+    "png",
+    "svg",
+    "cli",
+    "mcp",
+    "mcp-server"
+  ],
+  "mcpServers": {
+    "qr": {
+      "command": "npx",
+      "args": ["-y", "@sqaoss/qr", "mcp"]
+    }
+  }
+}
