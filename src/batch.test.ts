@@ -1,0 +1,357 @@
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import jsQR from 'jsqr'
+import { PNG } from 'pngjs'
+import { afterAll, describe, expect, it } from 'vitest'
+import { fileNameFor, kindFromPath, parseBatch, writeBatch } from './batch.js'
+import { QrError } from './core.js'
+
+const SFC = 'https://www.sfcromania.ro/semneaza-pactul'
+const WHATSAPP = 'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB'
+const COPILARIA = 'https://copilariadigitala.github.io/'
+
+const dirs: string[] = []
+
+async function tempDir() {
+  const dir = await mkdtemp(join(tmpdir(), 'qr-batch-'))
+  dirs.push(dir)
+  return dir
+}
+
+afterAll(async () => {
+  await Promise.all(
+    dirs.map((dir) => rm(dir, { recursive: true, force: true })),
+  )
+})
+
+function decode(bytes: Uint8Array) {
+  const png = PNG.sync.read(Buffer.from(bytes))
+  const code = jsQR(new Uint8ClampedArray(png.data), png.width, png.height)
+  if (!code) throw new Error('QR code did not decode')
+  return code.data
+}
+
+function codeOf(fn: () => unknown): string {
+  try {
+    fn()
+  } catch (err) {
+    expect(err).toBeInstanceOf(QrError)
+    return (err as QrError).code
+  }
+  throw new Error('expected the call to throw')
+}
+
+describe('kindFromPath', () => {
+  it.each([
+    ['items.json', 'json'],
+    ['ITEMS.JSON', 'json'],
+    ['/tmp/a/b/items.json', 'json'],
+    ['items.txt', 'lines'],
+    ['items', 'lines'],
+    ['-', 'lines'],
+  ])('maps %s to %s', (path, kind) => {
+    expect(kindFromPath(path)).toBe(kind)
+  })
+})
+
+describe('parseBatch json', () => {
+  it('accepts an array of strings', () => {
+    expect(parseBatch(`["${SFC}","${WHATSAPP}"]`, 'json')).toEqual([
+      { data: SFC },
+      { data: WHATSAPP },
+    ])
+  })
+
+  it('accepts an array of objects with style options', () => {
+    const text = JSON.stringify([
+      { data: SFC, out: 'sfc.svg', format: 'svg', scale: 8 },
+      {
+        data: WHATSAPP,
+        errorCorrection: 'L',
+        margin: 1,
+        dark: '#112233',
+        light: '#ffffff',
+      },
+    ])
+    expect(parseBatch(text, 'json')).toEqual([
+      { data: SFC, out: 'sfc.svg', format: 'svg', scale: 8 },
+      {
+        data: WHATSAPP,
+        errorCorrection: 'L',
+        margin: 1,
+        dark: '#112233',
+        light: '#ffffff',
+      },
+    ])
+  })
+
+  it('strips a leading BOM', () => {
+    expect(parseBatch(`﻿["${SFC}"]`, 'json')).toEqual([{ data: SFC }])
+  })
+
+  it('accepts CRLF line endings', () => {
+    expect(parseBatch(`[\r\n  "${SFC}"\r\n]\r\n`, 'json')).toEqual([
+      { data: SFC },
+    ])
+  })
+
+  it('rejects text that is not JSON, naming the problem', () => {
+    expect(codeOf(() => parseBatch('{not json', 'json'))).toBe('INVALID_BATCH')
+  })
+
+  it('rejects JSON that is not an array', () => {
+    expect(codeOf(() => parseBatch('{"data":"x"}', 'json'))).toBe(
+      'INVALID_BATCH',
+    )
+  })
+
+  it('rejects an empty array', () => {
+    expect(codeOf(() => parseBatch('[]', 'json'))).toBe('INVALID_BATCH')
+  })
+
+  it.each([
+    ['[1]', 'item 0'],
+    ['[null]', 'item 0'],
+    ['[["nested"]]', 'item 0'],
+    ['["ok",{"out":"a.png"}]', 'item 1'],
+    ['["ok",{"data":""}]', 'item 1'],
+    ['["ok",{"data":42}]', 'item 1'],
+    ['["ok",""]', 'item 1'],
+  ])('rejects %s and names the index', (text, mention) => {
+    let message = ''
+    try {
+      parseBatch(text, 'json')
+    } catch (err) {
+      expect((err as QrError).code).toBe('INVALID_BATCH')
+      message = (err as QrError).message
+    }
+    expect(message).toContain(mention)
+  })
+})
+
+describe('parseBatch lines', () => {
+  it('takes one item per line', () => {
+    expect(parseBatch(`${SFC}\n${WHATSAPP}`, 'lines')).toEqual([
+      { data: SFC },
+      { data: WHATSAPP },
+    ])
+  })
+
+  it('skips blank lines and # comments', () => {
+    const text = `# a comment\n\n${SFC}\n   \n  # indented comment\n${WHATSAPP}\n`
+    expect(parseBatch(text, 'lines')).toEqual([
+      { data: SFC },
+      { data: WHATSAPP },
+    ])
+  })
+
+  it('strips a leading BOM and accepts CRLF', () => {
+    expect(parseBatch(`﻿${SFC}\r\n${WHATSAPP}\r\n`, 'lines')).toEqual([
+      { data: SFC },
+      { data: WHATSAPP },
+    ])
+  })
+
+  it('rejects a file with no usable lines', () => {
+    expect(codeOf(() => parseBatch('\n\n# only comments\n', 'lines'))).toBe(
+      'INVALID_BATCH',
+    )
+  })
+})
+
+describe('parseBatch limits', () => {
+  it('rejects input above 1 MiB', () => {
+    const text = `${'x'.repeat(1024 * 1024 + 1)}`
+    expect(codeOf(() => parseBatch(text, 'lines'))).toBe('INVALID_BATCH')
+  })
+
+  it('accepts exactly 1000 items but not 1001', () => {
+    const thousand = Array.from({ length: 1000 }, (_, i) => `item-${i}`).join(
+      '\n',
+    )
+    expect(parseBatch(thousand, 'lines')).toHaveLength(1000)
+    expect(codeOf(() => parseBatch(`${thousand}\nitem-1000`, 'lines'))).toBe(
+      'INVALID_BATCH',
+    )
+  })
+})
+
+describe('fileNameFor', () => {
+  it.each([
+    [SFC, 'sfcromania-ro-semneaza-pactul.png'],
+    [WHATSAPP, 'chat-whatsapp-com-beetky2z5wb9teyompvcub.png'],
+    [COPILARIA, 'copilariadigitala-github-io.png'],
+  ])('names %s', (url, expected) => {
+    expect(fileNameFor(url, 'png')).toBe(expected)
+  })
+
+  it('uses the requested format as the extension', () => {
+    expect(fileNameFor(SFC, 'svg')).toBe('sfcromania-ro-semneaza-pactul.svg')
+  })
+
+  it('uses plain text as-is', () => {
+    expect(fileNameFor('Hello World!', 'png')).toBe('hello-world.png')
+  })
+
+  it('collapses runs of non-alphanumeric characters and trims them', () => {
+    expect(fileNameFor('  ***a -- b***  ', 'png')).toBe('a-b.png')
+  })
+
+  it('keeps a non-http URL as plain text', () => {
+    expect(fileNameFor('mailto:ops@sqaoss.dev', 'png')).toBe(
+      'mailto-ops-sqaoss-dev.png',
+    )
+  })
+
+  it('caps the name at 80 characters before the extension', () => {
+    const name = fileNameFor(
+      `https://example.com/${'segment-'.repeat(40)}`,
+      'png',
+    )
+    expect(name.endsWith('.png')).toBe(true)
+    expect(name.length - '.png'.length).toBeLessThanOrEqual(80)
+    expect(name).not.toContain('-.png')
+  })
+
+  it.each(['con', 'CON', 'nul', 'aux', 'prn', 'com1', 'lpt9'])(
+    'prefixes the Windows device name %s',
+    (device) => {
+      expect(fileNameFor(device, 'png')).toBe(`qr-${device.toLowerCase()}.png`)
+    },
+  )
+
+  it('falls back to qr.png when nothing alphanumeric survives', () => {
+    expect(fileNameFor('!!! ???', 'png')).toBe('qr.png')
+  })
+})
+
+describe('writeBatch', () => {
+  it('writes each item and reports the run', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch([{ data: SFC }, { data: WHATSAPP }], {
+      outDir,
+    })
+
+    expect(report.outDir).toBe(outDir)
+    expect(report.succeeded).toBe(2)
+    expect(report.failed).toBe(0)
+    expect(report.results).toHaveLength(2)
+
+    const first = report.results[0]
+    if (!first?.ok) throw new Error('expected the first item to succeed')
+    expect(first.path).toBe(join(outDir, 'sfcromania-ro-semneaza-pactul.png'))
+    expect(first.info.size).toBe(720)
+    expect(decode(await readFile(first.path))).toBe(SFC)
+  })
+
+  it('honours a relative out path, including a subdirectory', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch([{ data: SFC, out: 'deep/custom.svg' }], {
+      outDir,
+    })
+    const first = report.results[0]
+    if (!first?.ok) throw new Error('expected the item to succeed')
+    expect(first.path).toBe(join(outDir, 'deep', 'custom.svg'))
+    expect(first.info.format).toBe('svg')
+    expect(await readFile(first.path, 'utf8')).toContain('<svg')
+  })
+
+  it.each(['/etc/passwd', '../escape.png', 'sub/../../escape.png', ''])(
+    'fails the item whose out is %s',
+    async (out) => {
+      const outDir = await tempDir()
+      const report = await writeBatch([{ data: SFC, out }], { outDir })
+      expect(report.failed).toBe(1)
+      const first = report.results[0]
+      if (first?.ok !== false) throw new Error('expected the item to fail')
+      expect(first.error.code).toBe('INVALID_BATCH')
+      expect(await readdir(outDir)).toEqual([])
+    },
+  )
+
+  it('resolves name collisions case-insensitively with -2, -3 suffixes', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch(
+      [
+        { data: 'https://example.com/A' },
+        { data: 'https://example.com/a' },
+        { data: 'https://EXAMPLE.com/a' },
+      ],
+      { outDir },
+    )
+    expect(report.succeeded).toBe(3)
+    expect(report.results.map((r) => (r.ok ? r.path : ''))).toEqual([
+      join(outDir, 'example-com-a.png'),
+      join(outDir, 'example-com-a-2.png'),
+      join(outDir, 'example-com-a-3.png'),
+    ])
+  })
+
+  it('keeps going after a failed item and reports both', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch(
+      [{ data: SFC, scale: 0 }, { data: WHATSAPP }, { data: '   ' }],
+      { outDir },
+    )
+    expect(report.succeeded).toBe(1)
+    expect(report.failed).toBe(2)
+    expect(report.results.map((r) => (r.ok ? 'ok' : r.error.code))).toEqual([
+      'INVALID_OPTION',
+      'ok',
+      'EMPTY_DATA',
+    ])
+    expect(report.results[0]?.data).toBe(SFC)
+  })
+
+  it('applies defaults that an item can override', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch(
+      [{ data: SFC }, { data: WHATSAPP, scale: 4 }],
+      {
+        outDir,
+        defaults: { scale: 2, margin: 1, errorCorrection: 'L' },
+      },
+    )
+    const [first, second] = report.results
+    if (!first?.ok || !second?.ok)
+      throw new Error('expected both items to succeed')
+    expect(first.info.errorCorrection).toBe('L')
+    expect(first.info.size).toBe((first.info.modules + 2) * 2)
+    expect(second.info.size).toBe((second.info.modules + 2) * 4)
+  })
+
+  it('refuses to overwrite an existing file unless forced', async () => {
+    const outDir = await tempDir()
+    const name = 'sfcromania-ro-semneaza-pactul.png'
+    await writeFile(join(outDir, name), 'existing')
+
+    const blocked = await writeBatch([{ data: SFC }], { outDir })
+    expect(blocked.failed).toBe(1)
+    const first = blocked.results[0]
+    if (first?.ok !== false) throw new Error('expected the item to fail')
+    expect(first.error.code).toBe('FILE_EXISTS')
+
+    const forced = await writeBatch([{ data: SFC }], { outDir, force: true })
+    expect(forced.succeeded).toBe(1)
+    expect(decode(await readFile(join(outDir, name)))).toBe(SFC)
+  })
+
+  it('creates the output directory when it does not exist', async () => {
+    const outDir = join(await tempDir(), 'fresh', 'nested')
+    const report = await writeBatch([{ data: SFC }], { outDir })
+    expect(report.succeeded).toBe(1)
+    expect(await readdir(outDir)).toEqual(['sfcromania-ro-semneaza-pactul.png'])
+  })
+
+  it('rejects more than 1000 items outright', async () => {
+    const outDir = await tempDir()
+    const items = Array.from({ length: 1001 }, (_, i) => ({
+      data: `item-${i}`,
+    }))
+    await expect(writeBatch(items, { outDir })).rejects.toMatchObject({
+      code: 'INVALID_BATCH',
+    })
+    expect(await readdir(outDir)).toEqual([])
+  })
+})
