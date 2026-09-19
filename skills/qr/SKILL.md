@@ -34,8 +34,9 @@ npx -y @sqaoss/qr generate "https://copilariadigitala.github.io/" -o logo.svg
 # Let the filename come from the URL (./chat-whatsapp-com-beetky2z5wb9teyompvcub.png)
 npx -y @sqaoss/qr generate "https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB"
 
-# Data that starts with "-" needs the argument separator
-npx -y @sqaoss/qr generate -- "-40% today" -o sale.png
+# Data that starts with "-" needs the argument separator, with any flags
+# BEFORE it — everything after "--" is read as data, not as options
+npx -y @sqaoss/qr generate -o sale.png -- "-40% today"
 
 # Read the data from stdin
 printf '%s' "https://example.com" | npx -y @sqaoss/qr generate - -o out.png
@@ -157,7 +158,7 @@ Errors go to stderr as `error [CODE]: message`, or as
 3. **Report the output path.** Read it from `--json` (or the tool result) and
    tell the user exactly where the file landed.
 4. **Always write `qr generate` explicitly**, and use `--` before data that
-   starts with `-`.
+   starts with `-`, putting every flag before the separator.
 5. **Test before you hand it over.** A code with `--dark`/`--light` set to a
    low-contrast pair may not scan. Keep dark-on-light, and keep the margin at
    4 or more.
