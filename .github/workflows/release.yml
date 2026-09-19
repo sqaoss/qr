@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Husky installs git hooks in `prepare`, which has nothing to hook into on a
+# runner and fails when the repo is checked out without hooks enabled.
+env:
+  HUSKY: 0
+
+# Never run two releases at once, and never cancel one in flight: a cancelled
+# semantic-release can leave a git tag without the matching npm publish.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      # Required for npm provenance / trusted publishing (OIDC).
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # semantic-release reads the full history to work out the next version.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          # 24, not the package floor: @semantic-release/changelog and
+          # @semantic-release/git need Node >=24.15 or ^22.22.2.
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      # Deliberately npm, not bun: this is the real npm publish path, and
+      # `prepublishOnly` builds `dist/` before the tarball is packed.
+      - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Bootstrap only. Trusted publishing replaces this after 1.0.0 is on
+          # npm; the secret is then deleted and this line removed.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

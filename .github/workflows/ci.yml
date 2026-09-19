@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Husky installs git hooks in `prepare`, which has nothing to hook into on a
+# runner and fails when the repo is checked out without hooks enabled.
+env:
+  HUSKY: 0
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      # `test:coverage` runs the same suite as `test` plus a v8 report; the
+      # config carries the coverage thresholds, so this step is also the
+      # regression guard.
+      - run: bun run test:coverage
+
+  # End-to-end: builds `dist/`, then drives the built CLI, the MCP stdio server
+  # and a packed tarball under real Node — not Bun. `22.12.0` is the floor in
+  # `engines.node`, so it is pinned exactly; 22 and 24 track the latest of each
+  # active line. Windows gets its own combination because path handling and the
+  # `npx`/shebang launch path differ there.
+  e2e:
+    name: e2e (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        node: ['22.12.0', 22, 24]
+        include:
+          - os: windows-latest
+            node: 24
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run test:e2e
