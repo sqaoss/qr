@@ -10,6 +10,7 @@ import { QrError } from './core.js'
 const PLEDGE = 'https://www.example.com/sign-the-pledge'
 const INVITE = 'https://chat.example.org/invite/7Qm3kZp9XrT2vN8'
 const SITE = 'https://example.net/'
+const UNICODE_TEXT = 'Ünïcödé Tëst — 日本語'
 
 const dirs: string[] = []
 
@@ -196,6 +197,10 @@ describe('fileNameFor', () => {
 
   it('collapses runs of non-alphanumeric characters and trims them', () => {
     expect(fileNameFor('  ***a -- b***  ', 'png')).toBe('a-b.png')
+  })
+
+  it('drops non-ASCII characters, keeping only the ASCII runs', () => {
+    expect(fileNameFor(UNICODE_TEXT, 'png')).toBe('n-c-d-t-st.png')
   })
 
   it('keeps a non-http URL as plain text', () => {

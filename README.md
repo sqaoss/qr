@@ -250,11 +250,11 @@ sb add sqaoss/qr@qr
 
 ### Claude Code plugin
 
-The repo is both the plugin and its marketplace, so the skill and the MCP
-server arrive together:
+The plugin is listed in the [`sqaoss`](https://github.com/sqaoss/plugins)
+marketplace, and installing it brings the skill and the MCP server together:
 
 ```text
-/plugin marketplace add sqaoss/qr
+/plugin marketplace add sqaoss/plugins
 /plugin install qr@sqaoss
 ```
 

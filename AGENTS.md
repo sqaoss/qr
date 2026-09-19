@@ -53,7 +53,7 @@ src/version.ts    VERSION, read from package.json at runtime
 src/*.test.ts     colocated unit tests
 test/e2e/         built dist/ and the packed tarball, under real Node
 skills/qr/        the agent skill
-.claude-plugin/   plugin.json + marketplace.json
+.claude-plugin/   plugin.json — the Claude Code plugin manifest
 ```
 
 ## Module contracts
