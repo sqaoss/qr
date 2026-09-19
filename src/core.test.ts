@@ -12,7 +12,7 @@ import {
   it,
   vi,
 } from 'vitest'
-import { DEFAULTS, generate, QrError, writeQr } from './core.js'
+import { DEFAULTS, generate, measure, QrError, writeQr } from './core.js'
 
 const SFC = 'https://www.sfcromania.ro/semneaza-pactul'
 const WHATSAPP = 'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB'
@@ -377,5 +377,65 @@ describe('QrError', () => {
     expect(err.name).toBe('QrError')
     expect(err.code).toBe('INTERNAL')
     expect(err.message).toBe('boom')
+  })
+})
+
+describe('measure', () => {
+  it('reports what generate would report, for each real URL', async () => {
+    for (const url of REAL_URLS) {
+      const rendered = await generate(url, { scale: 8, margin: 2 })
+      expect(measure(url, { scale: 8, margin: 2 })).toEqual(rendered.info)
+    }
+  })
+
+  it('carries the requested format through', () => {
+    expect(measure(SFC, { format: 'svg' }).format).toBe('svg')
+    expect(measure(SFC).size).toBe(720)
+  })
+
+  it.each([
+    ['empty data', '   ', {}, 'EMPTY_DATA'],
+    ['a bad scale', SFC, { scale: 0 }, 'INVALID_OPTION'],
+    [
+      'a bad EC level',
+      SFC,
+      { scale: 8, errorCorrection: 'X' },
+      'INVALID_OPTION',
+    ],
+    ['a named color', SFC, { dark: 'red' }, 'INVALID_OPTION'],
+    [
+      'an oversized image',
+      'x'.repeat(300),
+      { scale: 64, margin: 32 },
+      'INVALID_OPTION',
+    ],
+  ])('rejects %s the same way generate does', (_label, data, opts, code) => {
+    expect(() => measure(data, opts as Parameters<typeof measure>[1])).toThrow(
+      expect.objectContaining({ code }),
+    )
+  })
+})
+
+describe('measure without a renderer', () => {
+  afterEach(() => {
+    vi.doUnmock('qrcode')
+    vi.resetModules()
+  })
+
+  it('never calls the renderer', async () => {
+    vi.resetModules()
+    vi.doMock('qrcode', () => ({
+      default: {
+        create: () => ({ version: 5, modules: { size: 37 } }),
+        toBuffer: () => Promise.reject(new Error('rendered anyway')),
+        toString: () => Promise.reject(new Error('rendered anyway')),
+      },
+    }))
+    const mod = await import('./core.js')
+    expect(mod.measure(SFC)).toMatchObject({
+      version: 5,
+      modules: 37,
+      size: 720,
+    })
   })
 })

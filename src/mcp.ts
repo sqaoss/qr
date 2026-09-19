@@ -16,7 +16,7 @@ import {
 } from '@modelcontextprotocol/server/stdio'
 import { z } from 'zod'
 import { type BatchItem, writeBatch } from './batch.js'
-import { generate, QrError, writeQr } from './core.js'
+import { generate, measure, QrError, writeQr } from './core.js'
 import { VERSION } from './version.js'
 
 const INSTRUCTIONS =
@@ -232,13 +232,16 @@ export const tools: ToolDef[] = [
     },
     async (args) =>
       run(async () => {
-        const result = await generate(args.data, args)
-        if (result.info.size > MAX_INLINE_SIZE) {
+        // Measured before rendering: a rejected call must not cost the agent's
+        // host the seconds and hundreds of megabytes a large render allocates.
+        const planned = measure(args.data, args)
+        if (planned.size > MAX_INLINE_SIZE) {
           throw new QrError(
             'INVALID_OPTION',
-            `the image would be ${result.info.size}px wide, above the ${MAX_INLINE_SIZE}px inline limit; lower scale or margin, or use qr_save to write it to a file instead`,
+            `the image would be ${planned.size}px wide, above the ${MAX_INLINE_SIZE}px inline limit; lower scale or margin, or use qr_save to write it to a file instead`,
           )
         }
+        const result = await generate(args.data, args)
         return ok(
           { ...result.info },
           result.format === 'svg'

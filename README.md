@@ -283,10 +283,12 @@ console.log(saved.path)
 
 `generate` returns a discriminated union, so `result.format === 'svg'` narrows
 `data` to a `string` and `'png'` narrows it to a `Uint8Array`. Failures throw a
-`QrError` carrying one of the codes above. Batch helpers (`parseBatch`,
-`fileNameFor`, `writeBatch`) and `DEFAULTS` are exported from the same entry
-point; the MCP server lives behind `@sqaoss/qr/mcp` so importing the library
-never loads the SDK.
+`QrError` carrying one of the codes above. `measure(data, options)` returns the
+same `info` synchronously without rendering anything, so you can check the size
+a request would produce before paying for the pixels. Batch helpers
+(`parseBatch`, `fileNameFor`, `writeBatch`) and `DEFAULTS` are exported from the
+same entry point; the MCP server lives behind `@sqaoss/qr/mcp` so importing the
+library never loads the SDK.
 
 ```ts
 import { createServer } from '@sqaoss/qr/mcp'

@@ -83,6 +83,7 @@ export type QrErrorCode =
   | 'FILE_EXISTS' | 'READ_FAILED' | 'WRITE_FAILED' | 'INTERNAL'
 export class QrError extends Error { readonly code: QrErrorCode }
 export const DEFAULTS: Readonly<Required<QrOptions>>
+export function measure(data: string, opts?: QrOptions): QrInfo
 export function generate(data: string, opts?: QrOptions): Promise<QrResult>
 export function writeQr(
   data: string, path: string, opts?: QrOptions & { force?: boolean },
@@ -94,6 +95,10 @@ unknown EC level becomes `M`, `dark: 'red'` becomes transparent, a number is
 read as hex. So `scale` is an integer 1–64, `margin` an integer 0–32, colors
 must match `^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$`, and a computed `size`
 above 8192 px is an `INVALID_OPTION`.
+
+`measure` runs the encode but not the render, so a caller with a tighter budget
+than the 8192 px cap — `qr_generate` and its 2048 px inline limit — can refuse a
+request without paying for pixels nobody receives.
 
 `writeQr` takes the format from a `.png`/`.svg` extension and raises
 `INVALID_OPTION` when an explicit `format` contradicts it. Parent directories

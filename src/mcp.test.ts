@@ -442,3 +442,39 @@ describe('mcp over streamable HTTP', () => {
     }
   })
 })
+
+describe('qr_generate cost guard', () => {
+  afterEach(() => {
+    vi.doUnmock('qrcode')
+    vi.resetModules()
+  })
+
+  it('refuses an oversized image without rendering it first', async () => {
+    const rendered: string[] = []
+    vi.resetModules()
+    vi.doMock('qrcode', () => ({
+      default: {
+        create: () => ({ version: 5, modules: { size: 37 } }),
+        toBuffer: () => {
+          rendered.push('png')
+          return Promise.resolve(Buffer.alloc(0))
+        },
+        toString: () => {
+          rendered.push('svg')
+          return Promise.resolve('')
+        },
+      },
+    }))
+    const mod = await import('./mcp.js')
+    const tool = mod.tools.filter((entry) => entry.name === 'qr_generate')[0]
+    if (!tool) throw new Error('qr_generate is not registered')
+
+    // 2880px: past the 2048px inline limit but under core's own 8192px cap,
+    // so this guard is the only thing standing between the caller and a full
+    // render they will never receive.
+    const result = await tool.handler({ data: SFC, scale: 64 })
+
+    expect(result.isError).toBe(true)
+    expect(rendered).toEqual([])
+  })
+})

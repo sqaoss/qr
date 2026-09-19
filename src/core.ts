@@ -164,27 +164,25 @@ function mapRendererError(err: unknown): QrError {
   return new QrError('INTERNAL', message)
 }
 
-export async function generate(
-  data: string,
-  opts: QrOptions = {},
-): Promise<QrResult> {
+function requireData(data: string): void {
   if (typeof data !== 'string' || data.trim() === '') {
     throw new QrError('EMPTY_DATA', 'data must be a non-empty string')
   }
-  const { format, scale, margin, errorCorrection, dark, light } =
-    resolveOptions(opts)
+}
 
-  // `create` is the only call that reports the version and module count, so it
-  // runs first and the renderers re-encode the same data.
+function measureResolved(data: string, o: Required<QrOptions>): QrInfo {
+  // `create` is the only call that reports the version and module count, and it
+  // is cheap — it encodes without rasterising, so the renderers re-encode the
+  // same data afterwards.
   let symbol: { version: number; modules: { size: number } }
   try {
-    symbol = QRCode.create(data, { errorCorrectionLevel: errorCorrection })
+    symbol = QRCode.create(data, { errorCorrectionLevel: o.errorCorrection })
   } catch (err) {
     throw mapRendererError(err)
   }
 
   const modules = symbol.modules.size
-  const size = (modules + 2 * margin) * scale
+  const size = (modules + 2 * o.margin) * o.scale
   if (size > MAX_IMAGE_SIZE) {
     throw new QrError(
       'INVALID_OPTION',
@@ -192,13 +190,34 @@ export async function generate(
     )
   }
 
-  const info: QrInfo = {
-    format,
+  return {
+    format: o.format,
     version: symbol.version,
     modules,
     size,
-    errorCorrection,
+    errorCorrection: o.errorCorrection,
   }
+}
+
+/**
+ * What `generate` would report, for a fraction of its cost: the encode runs but
+ * nothing is rasterised. Callers with a tighter size budget than `MAX_IMAGE_SIZE`
+ * use this to refuse a request before paying for the pixels.
+ */
+export function measure(data: string, opts: QrOptions = {}): QrInfo {
+  requireData(data)
+  return measureResolved(data, resolveOptions(opts))
+}
+
+export async function generate(
+  data: string,
+  opts: QrOptions = {},
+): Promise<QrResult> {
+  requireData(data)
+  const resolved = resolveOptions(opts)
+  const { format, scale, margin, errorCorrection, dark, light } = resolved
+  const info = measureResolved(data, resolved)
+  const size = info.size
   const color = { dark, light }
 
   try {

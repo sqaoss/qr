@@ -14,5 +14,5 @@ export type {
   QrOptions,
   QrResult,
 } from './core.js'
-export { DEFAULTS, generate, QrError, writeQr } from './core.js'
+export { DEFAULTS, generate, measure, QrError, writeQr } from './core.js'
 export { VERSION } from './version.js'

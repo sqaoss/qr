@@ -6,6 +6,7 @@ import * as index from './index.js'
 describe('the package entry point', () => {
   it('re-exports the core surface', () => {
     expect(index.generate).toBe(core.generate)
+    expect(index.measure).toBe(core.measure)
     expect(index.writeQr).toBe(core.writeQr)
     expect(index.QrError).toBe(core.QrError)
     expect(index.DEFAULTS).toBe(core.DEFAULTS)
@@ -26,6 +27,7 @@ describe('the package entry point', () => {
       'fileNameFor',
       'generate',
       'kindFromPath',
+      'measure',
       'parseBatch',
       'writeBatch',
       'writeQr',
