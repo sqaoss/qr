@@ -13,7 +13,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { capture, decodePng, ROOT, SFC } from './helpers.js'
+import { capture, decodePng, PLEDGE, ROOT } from './helpers.js'
 
 /** Generous: a cold `npm install` fetches the four runtime dependencies. */
 const INSTALL_TIMEOUT = 120_000
@@ -131,7 +131,7 @@ describe('packed tarball', () => {
       [
         "import { generate, DEFAULTS, QrError } from '@sqaoss/qr'",
         "import { createServer } from '@sqaoss/qr/mcp'",
-        `const result = await generate(${JSON.stringify(SFC)})`,
+        `const result = await generate(${JSON.stringify(PLEDGE)})`,
         'const server = createServer()',
         "if (result.format !== 'png') throw new Error('expected png')",
         'process.stdout.write(JSON.stringify({',
@@ -161,7 +161,7 @@ describe('packed tarball', () => {
     expect(parsed.defaults).toMatchObject({ format: 'png', scale: 16 })
     expect(parsed.errorName).toBe('EMPTY_DATA')
     expect(parsed.server).toBe('function')
-    expect(decodePng(Buffer.from(parsed.png, 'base64'))).toBe(SFC)
+    expect(decodePng(Buffer.from(parsed.png, 'base64'))).toBe(PLEDGE)
   })
 
   it('links a working qr binary', async () => {
@@ -176,14 +176,14 @@ describe('packed tarball', () => {
     const out = join(project, 'from-bin.png')
     const generated = await runInstalledBin([
       'generate',
-      SFC,
+      PLEDGE,
       '-o',
       out,
       '--json',
     ])
     expect(generated.code).toBe(0)
     expect(JSON.parse(generated.stdout)).toMatchObject({ path: out })
-    expect(decodePng(await readFile(out))).toBe(SFC)
+    expect(decodePng(await readFile(out))).toBe(PLEDGE)
   })
 
   it('type-checks in a nodenext consumer with no any leaks', async () => {

@@ -20,8 +20,8 @@ import {
 } from 'vitest'
 import { createServer, startStdio } from './mcp.js'
 
-const SFC = 'https://www.sfcromania.ro/semneaza-pactul'
-const WHATSAPP = 'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB'
+const PLEDGE = 'https://www.example.com/sign-the-pledge'
+const INVITE = 'https://chat.example.org/invite/7Qm3kZp9XrT2vN8'
 
 type CallResult = Awaited<ReturnType<Client['callTool']>>
 
@@ -111,13 +111,13 @@ describe('mcp', () => {
     it('returns a PNG image block that decodes back to the data', async () => {
       const result = await client.callTool({
         name: 'qr_generate',
-        arguments: { data: SFC },
+        arguments: { data: PLEDGE },
       })
 
       expect(result.isError).toBeFalsy()
       const image = imageBlock(result)
       expect(image.mimeType).toBe('image/png')
-      expect(decodePng(Buffer.from(image.data, 'base64'))).toBe(SFC)
+      expect(decodePng(Buffer.from(image.data, 'base64'))).toBe(PLEDGE)
       expect(result.structuredContent).toMatchObject({
         format: 'png',
         version: 5,
@@ -130,7 +130,7 @@ describe('mcp', () => {
     it('returns SVG as a text block', async () => {
       const result = await client.callTool({
         name: 'qr_generate',
-        arguments: { data: SFC, format: 'svg' },
+        arguments: { data: PLEDGE, format: 'svg' },
       })
 
       expect(result.isError).toBeFalsy()
@@ -145,7 +145,7 @@ describe('mcp', () => {
       const result = await client.callTool({
         name: 'qr_generate',
         arguments: {
-          data: WHATSAPP,
+          data: INVITE,
           scale: 4,
           margin: 1,
           errorCorrection: 'L',
@@ -156,14 +156,14 @@ describe('mcp', () => {
 
       expect(result.structuredContent).toMatchObject({ errorCorrection: 'L' })
       expect(decodePng(Buffer.from(imageBlock(result).data, 'base64'))).toBe(
-        WHATSAPP,
+        INVITE,
       )
     })
 
     it('refuses an image above 2048px and points at qr_save', async () => {
       const result = await client.callTool({
         name: 'qr_generate',
-        arguments: { data: SFC, scale: 64 },
+        arguments: { data: PLEDGE, scale: 64 },
       })
 
       expect(result.isError).toBe(true)
@@ -187,7 +187,7 @@ describe('mcp', () => {
     it('rejects arguments that fail schema validation', async () => {
       const result = await client.callTool({
         name: 'qr_generate',
-        arguments: { data: SFC, scale: 'huge' },
+        arguments: { data: PLEDGE, scale: 'huge' },
       })
 
       expect(result.isError).toBe(true)
@@ -200,7 +200,7 @@ describe('mcp', () => {
       const path = join(dir, 'saved.png')
       const result = await client.callTool({
         name: 'qr_save',
-        arguments: { data: SFC, path },
+        arguments: { data: PLEDGE, path },
       })
 
       expect(result.isError).toBeFalsy()
@@ -209,16 +209,19 @@ describe('mcp', () => {
         format: 'png',
         size: 720,
       })
-      expect(decodePng(await readFile(path))).toBe(SFC)
+      expect(decodePng(await readFile(path))).toBe(PLEDGE)
     })
 
     it('never overwrites: a second save returns FILE_EXISTS as isError', async () => {
       const path = join(dir, 'twice.png')
-      await client.callTool({ name: 'qr_save', arguments: { data: SFC, path } })
+      await client.callTool({
+        name: 'qr_save',
+        arguments: { data: PLEDGE, path },
+      })
 
       const result = await client.callTool({
         name: 'qr_save',
-        arguments: { data: SFC, path },
+        arguments: { data: PLEDGE, path },
       })
 
       expect(result.isError).toBe(true)
@@ -231,7 +234,7 @@ describe('mcp', () => {
     it('rejects a path that is neither .png nor .svg', async () => {
       const result = await client.callTool({
         name: 'qr_save',
-        arguments: { data: SFC, path: join(dir, 'nope.jpg') },
+        arguments: { data: PLEDGE, path: join(dir, 'nope.jpg') },
       })
 
       expect(result.isError).toBe(true)
@@ -245,7 +248,7 @@ describe('mcp', () => {
 
       const result = await client.callTool({
         name: 'qr_save',
-        arguments: { data: SFC, path: 'relative.png' },
+        arguments: { data: PLEDGE, path: 'relative.png' },
       })
 
       expect(result.isError).toBe(true)
@@ -260,7 +263,7 @@ describe('mcp', () => {
 
       const result = await client.callTool({
         name: 'qr_save',
-        arguments: { data: SFC, path: 'relative.svg' },
+        arguments: { data: PLEDGE, path: 'relative.svg' },
       })
 
       expect(result.isError).toBeFalsy()
@@ -277,7 +280,7 @@ describe('mcp', () => {
       const result = await client.callTool({
         name: 'qr_save_batch',
         arguments: {
-          items: [{ data: SFC }, { data: WHATSAPP, out: 'nested/wa.png' }],
+          items: [{ data: PLEDGE }, { data: INVITE, out: 'nested/invite.png' }],
           outDir,
         },
       })
@@ -288,14 +291,14 @@ describe('mcp', () => {
         succeeded: 2,
         failed: 0,
       })
-      expect(decodePng(await readFile(join(outDir, 'nested/wa.png')))).toBe(
-        WHATSAPP,
+      expect(decodePng(await readFile(join(outDir, 'nested/invite.png')))).toBe(
+        INVITE,
       )
       expect(
         decodePng(
-          await readFile(join(outDir, 'sfcromania-ro-semneaza-pactul.png')),
+          await readFile(join(outDir, 'example-com-sign-the-pledge.png')),
         ),
-      ).toBe(SFC)
+      ).toBe(PLEDGE)
     })
 
     it('applies the shared defaults', async () => {
@@ -303,7 +306,7 @@ describe('mcp', () => {
       const result = await client.callTool({
         name: 'qr_save_batch',
         arguments: {
-          items: [{ data: SFC }],
+          items: [{ data: PLEDGE }],
           outDir,
           defaults: { format: 'svg', errorCorrection: 'L' },
         },
@@ -313,7 +316,7 @@ describe('mcp', () => {
         results: { path: string; info: { errorCorrection: string } }[]
       }
       expect(report.results[0]?.path).toBe(
-        join(outDir, 'sfcromania-ro-semneaza-pactul.svg'),
+        join(outDir, 'example-com-sign-the-pledge.svg'),
       )
       expect(report.results[0]?.info.errorCorrection).toBe('L')
     })
@@ -323,7 +326,7 @@ describe('mcp', () => {
       const result = await client.callTool({
         name: 'qr_save_batch',
         arguments: {
-          items: [{ data: SFC }, { data: WHATSAPP, out: '../escape.png' }],
+          items: [{ data: PLEDGE }, { data: INVITE, out: '../escape.png' }],
           outDir,
         },
       })
@@ -341,8 +344,8 @@ describe('mcp', () => {
         name: 'qr_save_batch',
         arguments: {
           items: [
-            { data: SFC, out: '/absolute.png' },
-            { data: WHATSAPP, out: '../escape.png' },
+            { data: PLEDGE, out: '/absolute.png' },
+            { data: INVITE, out: '../escape.png' },
           ],
           outDir,
         },
@@ -431,10 +434,10 @@ describe('mcp over streamable HTTP', () => {
 
       const result = await client.callTool({
         name: 'qr_generate',
-        arguments: { data: SFC },
+        arguments: { data: PLEDGE },
       })
       expect(decodePng(Buffer.from(imageBlock(result).data, 'base64'))).toBe(
-        SFC,
+        PLEDGE,
       )
     } finally {
       await client.close()
@@ -472,7 +475,7 @@ describe('qr_generate cost guard', () => {
     // 2880px: past the 2048px inline limit but under core's own 8192px cap,
     // so this guard is the only thing standing between the caller and a full
     // render they will never receive.
-    const result = await tool.handler({ data: SFC, scale: 64 })
+    const result = await tool.handler({ data: PLEDGE, scale: 64 })
 
     expect(result.isError).toBe(true)
     expect(rendered).toEqual([])

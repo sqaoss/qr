@@ -19,15 +19,15 @@ a 4-module quiet zone, black on white.
 No install needed. `npx` fetches the package and runs it:
 
 ```bash
-# A PNG for a petition link
-npx -y @sqaoss/qr generate "https://www.sfcromania.ro/semneaza-pactul" -o pact.png
+# A PNG for a pledge link
+npx -y @sqaoss/qr generate "https://www.example.com/sign-the-pledge" -o pledge.png
 
 # An SVG for print — the format comes from the extension
-npx -y @sqaoss/qr generate "https://copilariadigitala.github.io/" -o copilaria.svg
+npx -y @sqaoss/qr generate "https://example.net/" -o site.svg
 
 # No -o: the filename is derived from the URL
-npx -y @sqaoss/qr generate "https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB"
-# → ./chat-whatsapp-com-beetky2z5wb9teyompvcub.png
+npx -y @sqaoss/qr generate "https://chat.example.org/invite/7Qm3kZp9XrT2vN8"
+# → ./chat-example-org-invite-7qm3kzp9xrt2vn8.png
 ```
 
 Or install it:
@@ -76,12 +76,12 @@ qr generate "https://example.com" -o - > out.png        # bytes to stdout
 With `--json`, stdout carries the result and nothing else:
 
 ```bash
-qr generate "https://www.sfcromania.ro/semneaza-pactul" -o pact.png --json
+qr generate "https://www.example.com/sign-the-pledge" -o pledge.png --json
 ```
 
 ```json
 {
-  "path": "/abs/path/pact.png",
+  "path": "/abs/path/pledge.png",
   "format": "png",
   "version": 5,
   "modules": 37,
@@ -110,28 +110,28 @@ cat links.txt | qr batch - --kind lines --out-dir ./qr
 
 ```text
 # print run, September
-https://www.sfcromania.ro/semneaza-pactul
-https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB
-https://copilariadigitala.github.io/
+https://www.example.com/sign-the-pledge
+https://chat.example.org/invite/7Qm3kZp9XrT2vN8
+https://example.net/
 ```
 
 **JSON** — an array of strings, or of objects with per-item overrides:
 
 ```json
 [
-  "https://www.sfcromania.ro/semneaza-pactul",
+  "https://www.example.com/sign-the-pledge",
   {
-    "data": "https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB",
-    "out": "invites/whatsapp.png",
+    "data": "https://chat.example.org/invite/7Qm3kZp9XrT2vN8",
+    "out": "invites/chat.png",
     "errorCorrection": "Q"
   },
-  { "data": "https://copilariadigitala.github.io/", "format": "svg", "scale": 24 }
+  { "data": "https://example.net/", "format": "svg", "scale": 24 }
 ]
 ```
 
 `out` has to be relative and stay inside `--out-dir`. Without it, the name comes
-from the data — `https://www.sfcromania.ro/semneaza-pactul` becomes
-`sfcromania-ro-semneaza-pactul.png` — and colliding names get `-2`, `-3`…
+from the data — `https://www.example.com/sign-the-pledge` becomes
+`example-com-sign-the-pledge.png` — and colliding names get `-2`, `-3`…
 suffixes. A failing item does not stop the run: every item is reported, and the
 command exits `3` if any of them failed. A batch takes at most 1,000 items and
 1 MiB of input.
@@ -266,16 +266,16 @@ The skill then answers to `/qr:qr`.
 import { generate, writeQr } from '@sqaoss/qr'
 
 // In memory: PNG bytes as a Uint8Array, SVG as a string
-const png = await generate('https://www.sfcromania.ro/semneaza-pactul')
+const png = await generate('https://www.example.com/sign-the-pledge')
 console.log(png.info) // { format: 'png', version: 5, modules: 37, size: 720, errorCorrection: 'H' }
 
-const svg = await generate('https://copilariadigitala.github.io/', { format: 'svg' })
+const svg = await generate('https://example.net/', { format: 'svg' })
 console.log(svg.data.slice(0, 4)) // '<svg'
 
 // Straight to disk, returning the absolute path
 const saved = await writeQr(
-  'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB',
-  'invites/whatsapp.png',
+  'https://chat.example.org/invite/7Qm3kZp9XrT2vN8',
+  'invites/chat.png',
   { errorCorrection: 'Q', scale: 20 },
 )
 console.log(saved.path)
@@ -299,7 +299,7 @@ import { createServer } from '@sqaoss/qr/mcp'
 | Setting | Default | Why |
 | --- | --- | --- |
 | Error correction | `H` | ~30% of the symbol can be damaged and still scan — the right choice for anything printed |
-| Scale | `16` | 16 px per module; the sfcromania URL lands at 720×720 |
+| Scale | `16` | 16 px per module; the pledge URL lands at 720×720 |
 | Margin | `4` | The quiet zone the spec requires. Scanners struggle without it |
 | Colors | black on white | Maximum contrast |
 

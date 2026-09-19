@@ -9,7 +9,14 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { CLI, decodePng, ROOT, runNode, runNodeBytes, SFC } from './helpers.js'
+import {
+  CLI,
+  decodePng,
+  PLEDGE,
+  ROOT,
+  runNode,
+  runNodeBytes,
+} from './helpers.js'
 
 describe('cli (built dist)', () => {
   let dir: string
@@ -40,12 +47,12 @@ describe('cli (built dist)', () => {
   })
 
   it('writes a png that decodes back to the encoded url', async () => {
-    const out = join(dir, 'sfc.png')
+    const out = join(dir, 'pledge.png')
 
     const { code, stdout } = await runNode([
       CLI,
       'generate',
-      SFC,
+      PLEDGE,
       '-o',
       out,
       '--json',
@@ -60,14 +67,14 @@ describe('cli (built dist)', () => {
       size: 720,
       errorCorrection: 'H',
     })
-    expect(decodePng(await readFile(out))).toBe(SFC)
+    expect(decodePng(await readFile(out))).toBe(PLEDGE)
   })
 
   it('pipes decodable png bytes to stdout with -o -', async () => {
     const { code, stdout } = await runNodeBytes([
       CLI,
       'generate',
-      SFC,
+      PLEDGE,
       '-o',
       '-',
     ])
@@ -76,15 +83,15 @@ describe('cli (built dist)', () => {
     expect(stdout.subarray(0, 8)).toEqual(
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     )
-    expect(decodePng(stdout)).toBe(SFC)
+    expect(decodePng(stdout)).toBe(PLEDGE)
   })
 
   it('exits 2 rather than overwriting an existing file', async () => {
     const out = join(dir, 'clash.png')
-    const first = await runNode([CLI, 'generate', SFC, '-o', out])
+    const first = await runNode([CLI, 'generate', PLEDGE, '-o', out])
     expect(first.code).toBe(0)
 
-    const { code, stderr } = await runNode([CLI, 'generate', SFC, '-o', out])
+    const { code, stderr } = await runNode([CLI, 'generate', PLEDGE, '-o', out])
 
     expect(code).toBe(2)
     expect(stderr).toContain('FILE_EXISTS')

@@ -26,13 +26,13 @@ against subcommand names, so a bare `qr "<data>"` breaks for data that reads
 
 ```bash
 # PNG next to you, print the machine-readable result
-npx -y @sqaoss/qr generate "https://www.sfcromania.ro/semneaza-pactul" -o poster.png --json
+npx -y @sqaoss/qr generate "https://www.example.com/sign-the-pledge" -o poster.png --json
 
 # SVG for print, inferred from the extension
-npx -y @sqaoss/qr generate "https://copilariadigitala.github.io/" -o logo.svg
+npx -y @sqaoss/qr generate "https://example.net/" -o logo.svg
 
-# Let the filename come from the URL (./chat-whatsapp-com-beetky2z5wb9teyompvcub.png)
-npx -y @sqaoss/qr generate "https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB"
+# Let the filename come from the URL (./chat-example-org-invite-7qm3kzp9xrt2vn8.png)
+npx -y @sqaoss/qr generate "https://chat.example.org/invite/7Qm3kZp9XrT2vN8"
 
 # Data that starts with "-" needs the argument separator, with any flags
 # BEFORE it — everything after "--" is read as data, not as options
@@ -63,7 +63,7 @@ on stdout. Read `path` from it and report that path back to the user.
 | `--json` | flag | off | Machine-readable result on stdout |
 
 The rendered image is `(modules + 2 × margin) × scale` pixels per side, capped
-at 8192. `https://www.sfcromania.ro/semneaza-pactul` at the defaults is a
+at 8192. `https://www.example.com/sign-the-pledge` at the defaults is a
 version-5, 37-module symbol at 720×720.
 
 ## Batch
@@ -83,28 +83,28 @@ input.
 
 ```text
 # print run, September
-https://www.sfcromania.ro/semneaza-pactul
-https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB
-https://copilariadigitala.github.io/
+https://www.example.com/sign-the-pledge
+https://chat.example.org/invite/7Qm3kZp9XrT2vN8
+https://example.net/
 ```
 
 **JSON format** — an array of strings, or of objects with per-item overrides:
 
 ```json
 [
-  "https://www.sfcromania.ro/semneaza-pactul",
+  "https://www.example.com/sign-the-pledge",
   {
-    "data": "https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB",
-    "out": "invites/whatsapp.png",
+    "data": "https://chat.example.org/invite/7Qm3kZp9XrT2vN8",
+    "out": "invites/chat.png",
     "errorCorrection": "Q"
   },
-  { "data": "https://copilariadigitala.github.io/", "format": "svg", "scale": 24 }
+  { "data": "https://example.net/", "format": "svg", "scale": 24 }
 ]
 ```
 
 `out` must be relative and stay inside `--out-dir`. Without it the name comes
-from the data: `https://www.sfcromania.ro/semneaza-pactul` becomes
-`sfcromania-ro-semneaza-pactul.png`. Colliding names get `-2`, `-3`… suffixes.
+from the data: `https://www.example.com/sign-the-pledge` becomes
+`example-com-sign-the-pledge.png`. Colliding names get `-2`, `-3`… suffixes.
 A failed item does not stop the run; the report lists every item.
 
 ## MCP tools

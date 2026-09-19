@@ -7,9 +7,9 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { fileNameFor, kindFromPath, parseBatch, writeBatch } from './batch.js'
 import { QrError } from './core.js'
 
-const SFC = 'https://www.sfcromania.ro/semneaza-pactul'
-const WHATSAPP = 'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB'
-const COPILARIA = 'https://copilariadigitala.github.io/'
+const PLEDGE = 'https://www.example.com/sign-the-pledge'
+const INVITE = 'https://chat.example.org/invite/7Qm3kZp9XrT2vN8'
+const SITE = 'https://example.net/'
 
 const dirs: string[] = []
 
@@ -57,17 +57,17 @@ describe('kindFromPath', () => {
 
 describe('parseBatch json', () => {
   it('accepts an array of strings', () => {
-    expect(parseBatch(`["${SFC}","${WHATSAPP}"]`, 'json')).toEqual([
-      { data: SFC },
-      { data: WHATSAPP },
+    expect(parseBatch(`["${PLEDGE}","${INVITE}"]`, 'json')).toEqual([
+      { data: PLEDGE },
+      { data: INVITE },
     ])
   })
 
   it('accepts an array of objects with style options', () => {
     const text = JSON.stringify([
-      { data: SFC, out: 'sfc.svg', format: 'svg', scale: 8 },
+      { data: PLEDGE, out: 'pledge.svg', format: 'svg', scale: 8 },
       {
-        data: WHATSAPP,
+        data: INVITE,
         errorCorrection: 'L',
         margin: 1,
         dark: '#112233',
@@ -75,9 +75,9 @@ describe('parseBatch json', () => {
       },
     ])
     expect(parseBatch(text, 'json')).toEqual([
-      { data: SFC, out: 'sfc.svg', format: 'svg', scale: 8 },
+      { data: PLEDGE, out: 'pledge.svg', format: 'svg', scale: 8 },
       {
-        data: WHATSAPP,
+        data: INVITE,
         errorCorrection: 'L',
         margin: 1,
         dark: '#112233',
@@ -87,12 +87,12 @@ describe('parseBatch json', () => {
   })
 
   it('strips a leading BOM', () => {
-    expect(parseBatch(`﻿["${SFC}"]`, 'json')).toEqual([{ data: SFC }])
+    expect(parseBatch(`﻿["${PLEDGE}"]`, 'json')).toEqual([{ data: PLEDGE }])
   })
 
   it('accepts CRLF line endings', () => {
-    expect(parseBatch(`[\r\n  "${SFC}"\r\n]\r\n`, 'json')).toEqual([
-      { data: SFC },
+    expect(parseBatch(`[\r\n  "${PLEDGE}"\r\n]\r\n`, 'json')).toEqual([
+      { data: PLEDGE },
     ])
   })
 
@@ -132,24 +132,24 @@ describe('parseBatch json', () => {
 
 describe('parseBatch lines', () => {
   it('takes one item per line', () => {
-    expect(parseBatch(`${SFC}\n${WHATSAPP}`, 'lines')).toEqual([
-      { data: SFC },
-      { data: WHATSAPP },
+    expect(parseBatch(`${PLEDGE}\n${INVITE}`, 'lines')).toEqual([
+      { data: PLEDGE },
+      { data: INVITE },
     ])
   })
 
   it('skips blank lines and # comments', () => {
-    const text = `# a comment\n\n${SFC}\n   \n  # indented comment\n${WHATSAPP}\n`
+    const text = `# a comment\n\n${PLEDGE}\n   \n  # indented comment\n${INVITE}\n`
     expect(parseBatch(text, 'lines')).toEqual([
-      { data: SFC },
-      { data: WHATSAPP },
+      { data: PLEDGE },
+      { data: INVITE },
     ])
   })
 
   it('strips a leading BOM and accepts CRLF', () => {
-    expect(parseBatch(`﻿${SFC}\r\n${WHATSAPP}\r\n`, 'lines')).toEqual([
-      { data: SFC },
-      { data: WHATSAPP },
+    expect(parseBatch(`﻿${PLEDGE}\r\n${INVITE}\r\n`, 'lines')).toEqual([
+      { data: PLEDGE },
+      { data: INVITE },
     ])
   })
 
@@ -179,15 +179,15 @@ describe('parseBatch limits', () => {
 
 describe('fileNameFor', () => {
   it.each([
-    [SFC, 'sfcromania-ro-semneaza-pactul.png'],
-    [WHATSAPP, 'chat-whatsapp-com-beetky2z5wb9teyompvcub.png'],
-    [COPILARIA, 'copilariadigitala-github-io.png'],
+    [PLEDGE, 'example-com-sign-the-pledge.png'],
+    [INVITE, 'chat-example-org-invite-7qm3kzp9xrt2vn8.png'],
+    [SITE, 'example-net.png'],
   ])('names %s', (url, expected) => {
     expect(fileNameFor(url, 'png')).toBe(expected)
   })
 
   it('uses the requested format as the extension', () => {
-    expect(fileNameFor(SFC, 'svg')).toBe('sfcromania-ro-semneaza-pactul.svg')
+    expect(fileNameFor(PLEDGE, 'svg')).toBe('example-com-sign-the-pledge.svg')
   })
 
   it('uses plain text as-is', () => {
@@ -229,7 +229,7 @@ describe('fileNameFor', () => {
 describe('writeBatch', () => {
   it('writes each item and reports the run', async () => {
     const outDir = await tempDir()
-    const report = await writeBatch([{ data: SFC }, { data: WHATSAPP }], {
+    const report = await writeBatch([{ data: PLEDGE }, { data: INVITE }], {
       outDir,
     })
 
@@ -240,16 +240,19 @@ describe('writeBatch', () => {
 
     const first = report.results[0]
     if (!first?.ok) throw new Error('expected the first item to succeed')
-    expect(first.path).toBe(join(outDir, 'sfcromania-ro-semneaza-pactul.png'))
+    expect(first.path).toBe(join(outDir, 'example-com-sign-the-pledge.png'))
     expect(first.info.size).toBe(720)
-    expect(decode(await readFile(first.path))).toBe(SFC)
+    expect(decode(await readFile(first.path))).toBe(PLEDGE)
   })
 
   it('honours a relative out path, including a subdirectory', async () => {
     const outDir = await tempDir()
-    const report = await writeBatch([{ data: SFC, out: 'deep/custom.svg' }], {
-      outDir,
-    })
+    const report = await writeBatch(
+      [{ data: PLEDGE, out: 'deep/custom.svg' }],
+      {
+        outDir,
+      },
+    )
     const first = report.results[0]
     if (!first?.ok) throw new Error('expected the item to succeed')
     expect(first.path).toBe(join(outDir, 'deep', 'custom.svg'))
@@ -261,7 +264,7 @@ describe('writeBatch', () => {
     'fails the item whose out is %s',
     async (out) => {
       const outDir = await tempDir()
-      const report = await writeBatch([{ data: SFC, out }], { outDir })
+      const report = await writeBatch([{ data: PLEDGE, out }], { outDir })
       expect(report.failed).toBe(1)
       const first = report.results[0]
       if (first?.ok !== false) throw new Error('expected the item to fail')
@@ -291,7 +294,7 @@ describe('writeBatch', () => {
   it('keeps going after a failed item and reports both', async () => {
     const outDir = await tempDir()
     const report = await writeBatch(
-      [{ data: SFC, scale: 0 }, { data: WHATSAPP }, { data: '   ' }],
+      [{ data: PLEDGE, scale: 0 }, { data: INVITE }, { data: '   ' }],
       { outDir },
     )
     expect(report.succeeded).toBe(1)
@@ -301,13 +304,13 @@ describe('writeBatch', () => {
       'ok',
       'EMPTY_DATA',
     ])
-    expect(report.results[0]?.data).toBe(SFC)
+    expect(report.results[0]?.data).toBe(PLEDGE)
   })
 
   it('applies defaults that an item can override', async () => {
     const outDir = await tempDir()
     const report = await writeBatch(
-      [{ data: SFC }, { data: WHATSAPP, scale: 4 }],
+      [{ data: PLEDGE }, { data: INVITE, scale: 4 }],
       {
         outDir,
         defaults: { scale: 2, margin: 1, errorCorrection: 'L' },
@@ -323,25 +326,25 @@ describe('writeBatch', () => {
 
   it('refuses to overwrite an existing file unless forced', async () => {
     const outDir = await tempDir()
-    const name = 'sfcromania-ro-semneaza-pactul.png'
+    const name = 'example-com-sign-the-pledge.png'
     await writeFile(join(outDir, name), 'existing')
 
-    const blocked = await writeBatch([{ data: SFC }], { outDir })
+    const blocked = await writeBatch([{ data: PLEDGE }], { outDir })
     expect(blocked.failed).toBe(1)
     const first = blocked.results[0]
     if (first?.ok !== false) throw new Error('expected the item to fail')
     expect(first.error.code).toBe('FILE_EXISTS')
 
-    const forced = await writeBatch([{ data: SFC }], { outDir, force: true })
+    const forced = await writeBatch([{ data: PLEDGE }], { outDir, force: true })
     expect(forced.succeeded).toBe(1)
-    expect(decode(await readFile(join(outDir, name)))).toBe(SFC)
+    expect(decode(await readFile(join(outDir, name)))).toBe(PLEDGE)
   })
 
   it('creates the output directory when it does not exist', async () => {
     const outDir = join(await tempDir(), 'fresh', 'nested')
-    const report = await writeBatch([{ data: SFC }], { outDir })
+    const report = await writeBatch([{ data: PLEDGE }], { outDir })
     expect(report.succeeded).toBe(1)
-    expect(await readdir(outDir)).toEqual(['sfcromania-ro-semneaza-pactul.png'])
+    expect(await readdir(outDir)).toEqual(['example-com-sign-the-pledge.png'])
   })
 
   it('leaves the name of a failed item free for the next one', async () => {
@@ -403,7 +406,7 @@ describe('writeBatch with the filesystem root as outDir', () => {
     const mod = await import('./batch.js')
     const root = resolve('/')
 
-    const report = await mod.writeBatch([{ data: SFC, out: 'a.png' }], {
+    const report = await mod.writeBatch([{ data: PLEDGE, out: 'a.png' }], {
       outDir: root,
     })
 

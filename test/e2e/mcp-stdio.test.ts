@@ -12,7 +12,7 @@
 import { Client } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { describe, expect, it } from 'vitest'
-import { decodePng, ROOT, SFC } from './helpers.js'
+import { decodePng, PLEDGE, ROOT } from './helpers.js'
 
 type Era = { label: string; options: ConstructorParameters<typeof Client>[1] }
 
@@ -53,7 +53,7 @@ describe.each(ERAS)('mcp over real stdio: $label', (era) => {
 
       const result = await client.callTool({
         name: 'qr_generate',
-        arguments: { data: SFC },
+        arguments: { data: PLEDGE },
       })
 
       const block = result.content[0]
@@ -63,7 +63,7 @@ describe.each(ERAS)('mcp over real stdio: $label', (era) => {
         )
       }
       expect(block.mimeType).toBe('image/png')
-      expect(decodePng(Buffer.from(block.data, 'base64'))).toBe(SFC)
+      expect(decodePng(Buffer.from(block.data, 'base64'))).toBe(PLEDGE)
       expect(result.structuredContent).toMatchObject({
         format: 'png',
         version: 5,

@@ -15,8 +15,8 @@ const { startStdio } = vi.hoisted(() => ({
 }))
 vi.mock('./mcp.js', () => ({ startStdio, createServer: vi.fn() }))
 
-const SFC = 'https://www.sfcromania.ro/semneaza-pactul'
-const WHATSAPP = 'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB'
+const PLEDGE = 'https://www.example.com/sign-the-pledge'
+const INVITE = 'https://chat.example.org/invite/7Qm3kZp9XrT2vN8'
 
 class Collector extends Writable {
   readonly chunks: Buffer[] = []
@@ -91,44 +91,44 @@ describe('qr generate', () => {
     const out = join(dir, 'out.png')
     const { io, stdout, stderr } = harness()
 
-    const code = await run(['generate', SFC, '-o', out], io)
+    const code = await run(['generate', PLEDGE, '-o', out], io)
 
     expect(code).toBe(0)
     expect(stderr.text).toBe('')
     expect(stdout.text).toBe(`${out}\n`)
-    expect(await decodeFile(out)).toBe(SFC)
+    expect(await decodeFile(out)).toBe(PLEDGE)
   })
 
   it('treats a bare data operand as generate', async () => {
     const out = join(dir, 'out.png')
     const { io, stdout } = harness()
 
-    const code = await run([WHATSAPP, '-o', out], io)
+    const code = await run([INVITE, '-o', out], io)
 
     expect(code).toBe(0)
     expect(stdout.text).toBe(`${out}\n`)
-    expect(await decodeFile(out)).toBe(WHATSAPP)
+    expect(await decodeFile(out)).toBe(INVITE)
   })
 
   it('names the file after the data when --output is omitted', async () => {
     const { io, stdout } = harness()
 
-    const code = await run(['generate', SFC], io)
+    const code = await run(['generate', PLEDGE], io)
 
     expect(code).toBe(0)
-    const expected = join(dir, 'sfcromania-ro-semneaza-pactul.png')
+    const expected = join(dir, 'example-com-sign-the-pledge.png')
     expect(stdout.text).toBe(`${expected}\n`)
-    expect(await decodeFile(expected)).toBe(SFC)
+    expect(await decodeFile(expected)).toBe(PLEDGE)
   })
 
   it('names the default file with the --format extension', async () => {
     const { io, stdout } = harness()
 
-    const code = await run(['generate', SFC, '-f', 'svg'], io)
+    const code = await run(['generate', PLEDGE, '-f', 'svg'], io)
 
     expect(code).toBe(0)
     expect(stdout.text).toBe(
-      `${join(dir, 'sfcromania-ro-semneaza-pactul.svg')}\n`,
+      `${join(dir, 'example-com-sign-the-pledge.svg')}\n`,
     )
   })
 
@@ -136,7 +136,7 @@ describe('qr generate', () => {
     const out = join(dir, 'out.png')
     const { io, stdout } = harness()
 
-    const code = await run(['generate', SFC, '-o', out, '--json'], io)
+    const code = await run(['generate', PLEDGE, '-o', out, '--json'], io)
 
     expect(code).toBe(0)
     expect(JSON.parse(stdout.text)).toEqual({
@@ -156,7 +156,7 @@ describe('qr generate', () => {
     const code = await run(
       [
         'generate',
-        SFC,
+        PLEDGE,
         '-o',
         out,
         '-s',
@@ -189,7 +189,7 @@ describe('qr generate', () => {
     const { io, stderr } = harness()
 
     const code = await run(
-      ['generate', SFC, '-o', join(dir, 'out.png'), '-f', 'svg'],
+      ['generate', PLEDGE, '-o', join(dir, 'out.png'), '-f', 'svg'],
       io,
     )
 
@@ -220,7 +220,7 @@ describe('qr generate', () => {
     await writeFile(out, 'not a png')
     const { io, stderr } = harness()
 
-    const code = await run(['generate', SFC, '-o', out], io)
+    const code = await run(['generate', PLEDGE, '-o', out], io)
 
     expect(code).toBe(2)
     expect(stderr.text).toMatch(/^error \[FILE_EXISTS]: /)
@@ -232,10 +232,10 @@ describe('qr generate', () => {
     await writeFile(out, 'not a png')
     const { io } = harness()
 
-    const code = await run(['generate', SFC, '-o', out, '--force'], io)
+    const code = await run(['generate', PLEDGE, '-o', out, '--force'], io)
 
     expect(code).toBe(0)
-    expect(await decodeFile(out)).toBe(SFC)
+    expect(await decodeFile(out)).toBe(PLEDGE)
   })
 
   it('exits 2 when the file cannot be written', async () => {
@@ -243,7 +243,10 @@ describe('qr generate', () => {
     await writeFile(blocker, 'a file, not a directory')
     const { io, stderr } = harness()
 
-    const code = await run(['generate', SFC, '-o', join(blocker, 'x.png')], io)
+    const code = await run(
+      ['generate', PLEDGE, '-o', join(blocker, 'x.png')],
+      io,
+    )
 
     expect(code).toBe(2)
     expect(stderr.text).toMatch(/^error \[WRITE_FAILED]: /)
@@ -252,7 +255,7 @@ describe('qr generate', () => {
   it('renders errors as JSON on stderr with --json', async () => {
     const { io, stdout, stderr } = harness()
 
-    const code = await run(['generate', SFC, '-s', '0', '--json'], io)
+    const code = await run(['generate', PLEDGE, '-s', '0', '--json'], io)
 
     expect(code).toBe(1)
     expect(stdout.text).toBe('')
@@ -264,7 +267,7 @@ describe('qr generate', () => {
   it('reports a non-numeric --scale as an invalid option', async () => {
     const { io, stderr } = harness()
 
-    const code = await run(['generate', SFC, '-s', 'huge'], io)
+    const code = await run(['generate', PLEDGE, '-s', 'huge'], io)
 
     expect(code).toBe(1)
     expect(stderr.text).toMatch(/^error \[INVALID_OPTION]: scale/)
@@ -274,12 +277,12 @@ describe('qr generate', () => {
 describe('qr generate with stdin', () => {
   it('reads the data from stdin when it is "-"', async () => {
     const out = join(dir, 'out.png')
-    const { io } = harness({ stdin: SFC })
+    const { io } = harness({ stdin: PLEDGE })
 
     const code = await run(['generate', '-', '-o', out], io)
 
     expect(code).toBe(0)
-    expect(await decodeFile(out)).toBe(SFC)
+    expect(await decodeFile(out)).toBe(PLEDGE)
   })
 
   it('strips exactly one trailing newline', async () => {
@@ -319,7 +322,7 @@ describe('qr generate with stdin', () => {
   })
 
   it('refuses to read stdin from a terminal', async () => {
-    const { io, stderr } = harness({ stdin: SFC, stdinTTY: true })
+    const { io, stderr } = harness({ stdin: PLEDGE, stdinTTY: true })
 
     const code = await run(['generate', '-'], io)
 
@@ -332,17 +335,17 @@ describe('qr generate with --output -', () => {
   it('writes the image bytes to stdout', async () => {
     const { io, stdout, stderr } = harness()
 
-    const code = await run(['generate', SFC, '-o', '-'], io)
+    const code = await run(['generate', PLEDGE, '-o', '-'], io)
 
     expect(code).toBe(0)
     expect(stderr.text).toBe('')
-    expect(decode(stdout.bytes)).toBe(SFC)
+    expect(decode(stdout.bytes)).toBe(PLEDGE)
   })
 
   it('writes svg text to stdout', async () => {
     const { io, stdout } = harness()
 
-    const code = await run(['generate', SFC, '-o', '-', '-f', 'svg'], io)
+    const code = await run(['generate', PLEDGE, '-o', '-', '-f', 'svg'], io)
 
     expect(code).toBe(0)
     expect(stdout.text).toContain('<svg')
@@ -351,7 +354,7 @@ describe('qr generate with --output -', () => {
   it('rejects --json together with --output -', async () => {
     const { io, stderr } = harness()
 
-    const code = await run(['generate', SFC, '-o', '-', '--json'], io)
+    const code = await run(['generate', PLEDGE, '-o', '-', '--json'], io)
 
     expect(code).toBe(1)
     expect(JSON.parse(stderr.text).error.code).toBe('INVALID_OPTION')
@@ -360,7 +363,7 @@ describe('qr generate with --output -', () => {
   it('refuses to dump a png onto a terminal', async () => {
     const { io, stdout, stderr } = harness({ stdoutTTY: true })
 
-    const code = await run(['generate', SFC, '-o', '-'], io)
+    const code = await run(['generate', PLEDGE, '-o', '-'], io)
 
     expect(code).toBe(1)
     expect(stdout.bytes.length).toBe(0)
@@ -370,7 +373,7 @@ describe('qr generate with --output -', () => {
   it('still writes svg onto a terminal, which is text', async () => {
     const { io, stdout } = harness({ stdoutTTY: true })
 
-    const code = await run(['generate', SFC, '-o', '-', '-f', 'svg'], io)
+    const code = await run(['generate', PLEDGE, '-o', '-', '-f', 'svg'], io)
 
     expect(code).toBe(0)
     expect(stdout.text).toContain('<svg')
@@ -401,7 +404,7 @@ describe('qr operand parsing', () => {
   it('exits 1 on an unknown option', async () => {
     const { io, stderr } = harness()
 
-    const code = await run(['generate', SFC, '--nope'], io)
+    const code = await run(['generate', PLEDGE, '--nope'], io)
 
     expect(code).toBe(1)
     expect(stderr.text).toMatch(/unknown option/)
@@ -460,7 +463,7 @@ describe('qr help and version', () => {
 describe('qr batch', () => {
   it('writes every item and prints the paths', async () => {
     const list = join(dir, 'urls.txt')
-    await writeFile(list, `# a comment\n${SFC}\n\n${WHATSAPP}\n`)
+    await writeFile(list, `# a comment\n${PLEDGE}\n\n${INVITE}\n`)
     const { io, stdout, stderr } = harness()
 
     const code = await run(['batch', list, '--out-dir', dir], io)
@@ -469,28 +472,28 @@ describe('qr batch', () => {
     expect(stderr.text).toBe('')
     const lines = stdout.text.trim().split('\n')
     expect(lines).toEqual([
-      join(dir, 'sfcromania-ro-semneaza-pactul.png'),
-      join(dir, 'chat-whatsapp-com-beetky2z5wb9teyompvcub.png'),
+      join(dir, 'example-com-sign-the-pledge.png'),
+      join(dir, 'chat-example-org-invite-7qm3kzp9xrt2vn8.png'),
     ])
-    expect(await decodeFile(lines[0] as string)).toBe(SFC)
+    expect(await decodeFile(lines[0] as string)).toBe(PLEDGE)
   })
 
   it('defaults the output directory to the working directory', async () => {
     const list = join(dir, 'urls.txt')
-    await writeFile(list, `${SFC}\n`)
+    await writeFile(list, `${PLEDGE}\n`)
     const { io, stdout } = harness()
 
     const code = await run(['batch', list], io)
 
     expect(code).toBe(0)
     expect(stdout.text.trim()).toBe(
-      join(dir, 'sfcromania-ro-semneaza-pactul.png'),
+      join(dir, 'example-com-sign-the-pledge.png'),
     )
   })
 
   it('prints the full report with --json', async () => {
     const list = join(dir, 'urls.json')
-    await writeFile(list, JSON.stringify([SFC]))
+    await writeFile(list, JSON.stringify([PLEDGE]))
     const out = join(dir, 'codes')
     const { io, stdout } = harness()
 
@@ -501,12 +504,12 @@ describe('qr batch', () => {
     expect(report.outDir).toBe(out)
     expect(report.succeeded).toBe(1)
     expect(report.failed).toBe(0)
-    expect(report.results[0]).toMatchObject({ ok: true, data: SFC })
+    expect(report.results[0]).toMatchObject({ ok: true, data: PLEDGE })
   })
 
   it('applies the style flags as per-item defaults', async () => {
     const list = join(dir, 'urls.txt')
-    await writeFile(list, `${SFC}\n`)
+    await writeFile(list, `${PLEDGE}\n`)
     const { io, stdout } = harness()
 
     const code = await run(
@@ -522,7 +525,7 @@ describe('qr batch', () => {
   })
 
   it('reads the list from stdin with --kind', async () => {
-    const { io, stdout } = harness({ stdin: JSON.stringify([SFC]) })
+    const { io, stdout } = harness({ stdin: JSON.stringify([PLEDGE]) })
 
     const code = await run(
       ['batch', '-', '--kind', 'json', '--out-dir', dir],
@@ -531,7 +534,7 @@ describe('qr batch', () => {
 
     expect(code).toBe(0)
     expect(stdout.text.trim()).toBe(
-      join(dir, 'sfcromania-ro-semneaza-pactul.png'),
+      join(dir, 'example-com-sign-the-pledge.png'),
     )
   })
 
@@ -539,7 +542,7 @@ describe('qr batch', () => {
     const list = join(dir, 'urls.json')
     await writeFile(
       list,
-      JSON.stringify([{ data: SFC, out: '/etc/passwd.png' }, WHATSAPP]),
+      JSON.stringify([{ data: PLEDGE, out: '/etc/passwd.png' }, INVITE]),
     )
     const { io, stdout, stderr } = harness()
 
@@ -548,13 +551,16 @@ describe('qr batch', () => {
     expect(code).toBe(3)
     expect(stderr.text).toMatch(/^error \[INVALID_BATCH]: /)
     expect(stdout.text.trim()).toBe(
-      join(dir, 'chat-whatsapp-com-beetky2z5wb9teyompvcub.png'),
+      join(dir, 'chat-example-org-invite-7qm3kzp9xrt2vn8.png'),
     )
   })
 
   it('reports failures inside the JSON report and still exits 3', async () => {
     const list = join(dir, 'urls.json')
-    await writeFile(list, JSON.stringify([{ data: SFC, out: '../escape.png' }]))
+    await writeFile(
+      list,
+      JSON.stringify([{ data: PLEDGE, out: '../escape.png' }]),
+    )
     const { io, stdout } = harness()
 
     const code = await run(['batch', list, '--out-dir', dir, '--json'], io)
@@ -567,8 +573,8 @@ describe('qr batch', () => {
 
   it('overwrites existing files with --force', async () => {
     const list = join(dir, 'urls.txt')
-    await writeFile(list, `${SFC}\n`)
-    const taken = join(dir, 'sfcromania-ro-semneaza-pactul.png')
+    await writeFile(list, `${PLEDGE}\n`)
+    const taken = join(dir, 'example-com-sign-the-pledge.png')
     await writeFile(taken, 'not a png')
     const { io } = harness()
 
@@ -576,7 +582,7 @@ describe('qr batch', () => {
     expect(
       await run(['batch', list, '--out-dir', dir, '--force'], harness().io),
     ).toBe(0)
-    expect(await decodeFile(taken)).toBe(SFC)
+    expect(await decodeFile(taken)).toBe(PLEDGE)
   })
 
   it('exits 2 when the list cannot be read', async () => {
@@ -601,7 +607,7 @@ describe('qr batch', () => {
 
   it('exits 1 on an unknown --kind', async () => {
     const list = join(dir, 'urls.txt')
-    await writeFile(list, `${SFC}\n`)
+    await writeFile(list, `${PLEDGE}\n`)
     const { io, stderr } = harness()
 
     const code = await run(['batch', list, '--kind', 'csv'], io)

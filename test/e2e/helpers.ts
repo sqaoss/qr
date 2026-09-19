@@ -13,8 +13,8 @@ export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 /** The built CLI entry point the whole e2e suite exercises. */
 export const CLI = resolve(ROOT, 'dist/cli.js')
 
-export const SFC = 'https://www.sfcromania.ro/semneaza-pactul'
-export const WHATSAPP = 'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB'
+export const PLEDGE = 'https://www.example.com/sign-the-pledge'
+export const INVITE = 'https://chat.example.org/invite/7Qm3kZp9XrT2vN8'
 
 export interface RunResult {
   code: number

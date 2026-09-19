@@ -14,10 +14,12 @@ import {
 } from 'vitest'
 import { DEFAULTS, generate, measure, QrError, writeQr } from './core.js'
 
-const SFC = 'https://www.sfcromania.ro/semneaza-pactul'
-const WHATSAPP = 'https://chat.whatsapp.com/BeEtKY2z5wB9TEyompvcUB'
-const COPILARIA = 'https://copilariadigitala.github.io/'
-const REAL_URLS = [SFC, WHATSAPP, COPILARIA]
+const PLEDGE = 'https://www.example.com/sign-the-pledge'
+const INVITE = 'https://chat.example.org/invite/7Qm3kZp9XrT2vN8'
+const SITE = 'https://example.net/'
+const REAL_URLS = [PLEDGE, INVITE, SITE]
+/** Two- and three-byte UTF-8 sequences, so a byte-exact round-trip is provable. */
+const UNICODE_TEXT = 'Ünïcödé Tëst — 日本語'
 
 function readPng(bytes: Uint8Array) {
   return PNG.sync.read(Buffer.from(bytes))
@@ -81,29 +83,28 @@ describe('generate', () => {
   it.each(['L', 'M', 'Q', 'H'] as const)(
     'round-trips at error-correction level %s',
     async (level) => {
-      const result = await generatePng(SFC, { errorCorrection: level })
+      const result = await generatePng(PLEDGE, { errorCorrection: level })
       expect(result.info.errorCorrection).toBe(level)
-      expect(decode(result.data).code.data).toBe(SFC)
+      expect(decode(result.data).code.data).toBe(PLEDGE)
     },
   )
 
-  it('encodes Romanian diacritics as UTF-8 bytes', async () => {
-    const text = 'Copilăria Digitală'
-    const { data } = await generatePng(text)
+  it('encodes diacritics and multi-byte characters as UTF-8 bytes', async () => {
+    const { data } = await generatePng(UNICODE_TEXT)
     const { code } = decode(data)
-    expect(code.binaryData).toEqual([...Buffer.from(text, 'utf8')])
+    expect(code.binaryData).toEqual([...Buffer.from(UNICODE_TEXT, 'utf8')])
   })
 
   it('reports size as (modules + 2 * margin) * scale', async () => {
-    const { info, data } = await generatePng(SFC, { scale: 8, margin: 2 })
+    const { info, data } = await generatePng(PLEDGE, { scale: 8, margin: 2 })
     expect(info.size).toBe((info.modules + 2 * 2) * 8)
     const png = readPng(data)
     expect(png.width).toBe(info.size)
     expect(png.height).toBe(info.size)
   })
 
-  it('renders the sfcromania URL as 720x720 at version 5', async () => {
-    const { info, data } = await generatePng(SFC)
+  it('renders the pledge URL as 720x720 at version 5', async () => {
+    const { info, data } = await generatePng(PLEDGE)
     expect(info.version).toBe(5)
     expect(info.modules).toBe(37)
     expect(info.size).toBe(720)
@@ -113,7 +114,7 @@ describe('generate', () => {
   })
 
   it('gives the SVG a width equal to info.size, ignoring the renderer default', async () => {
-    const { info, data } = await generateSvg(SFC)
+    const { info, data } = await generateSvg(PLEDGE)
     expect(info.format).toBe('svg')
     expect(info.size).toBe(720)
     expect(data).toContain('width="720"')
@@ -121,13 +122,13 @@ describe('generate', () => {
   })
 
   it('scales the SVG with the scale option even though the renderer ignores it', async () => {
-    const small = await generateSvg(SFC, { scale: 2 })
+    const small = await generateSvg(PLEDGE, { scale: 2 })
     expect(small.info.size).toBe((small.info.modules + 8) * 2)
     expect(small.data).toContain(`width="${small.info.size}"`)
   })
 
   it('puts the custom colors into the PNG pixels', async () => {
-    const { data } = await generatePng(SFC, {
+    const { data } = await generatePng(PLEDGE, {
       dark: '#ff0000',
       light: '#00ff00',
       scale: 4,
@@ -143,10 +144,10 @@ describe('generate', () => {
 
   it('accepts 3-, 4-, 6- and 8-digit hex colors in any case', async () => {
     await expect(
-      generate(SFC, { dark: '#000', light: '#FFFF' }),
+      generate(PLEDGE, { dark: '#000', light: '#FFFF' }),
     ).resolves.toBeTruthy()
     await expect(
-      generate(SFC, { dark: '#00FF00ff', light: '#ffffff' }),
+      generate(PLEDGE, { dark: '#00FF00ff', light: '#ffffff' }),
     ).resolves.toBeTruthy()
   })
 
@@ -173,24 +174,24 @@ describe('generate validation', () => {
   })
 
   it.each([0, 65, 1.5, Number.NaN])('rejects scale %s', async (scale) => {
-    expect(await codeOf(generate(SFC, { scale }))).toBe('INVALID_OPTION')
+    expect(await codeOf(generate(PLEDGE, { scale }))).toBe('INVALID_OPTION')
   })
 
   it.each([-1, 33, 1.5])('rejects margin %s', async (margin) => {
-    expect(await codeOf(generate(SFC, { margin }))).toBe('INVALID_OPTION')
+    expect(await codeOf(generate(PLEDGE, { margin }))).toBe('INVALID_OPTION')
   })
 
   it.each(['X', 'low', 'h', ''])(
     'rejects error-correction level %s',
     async (level) => {
       expect(
-        await codeOf(generate(SFC, { errorCorrection: level as 'L' })),
+        await codeOf(generate(PLEDGE, { errorCorrection: level as 'L' })),
       ).toBe('INVALID_OPTION')
     },
   )
 
   it.each(['gif', 'PNG', ''])('rejects format %s', async (format) => {
-    expect(await codeOf(generate(SFC, { format: format as 'png' }))).toBe(
+    expect(await codeOf(generate(PLEDGE, { format: format as 'png' }))).toBe(
       'INVALID_OPTION',
     )
   })
@@ -198,10 +199,10 @@ describe('generate validation', () => {
   it.each(['red', '#12345', '000000', '#gggggg', '#', 'rgb(0,0,0)'])(
     'rejects the color %s',
     async (color) => {
-      expect(await codeOf(generate(SFC, { dark: color }))).toBe(
+      expect(await codeOf(generate(PLEDGE, { dark: color }))).toBe(
         'INVALID_OPTION',
       )
-      expect(await codeOf(generate(SFC, { light: color }))).toBe(
+      expect(await codeOf(generate(PLEDGE, { light: color }))).toBe(
         'INVALID_OPTION',
       )
     },
@@ -209,7 +210,7 @@ describe('generate validation', () => {
 
   it('rejects a numeric color instead of silently treating it as hex', async () => {
     expect(
-      await codeOf(generate(SFC, { dark: 0x000000 as unknown as string })),
+      await codeOf(generate(PLEDGE, { dark: 0x000000 as unknown as string })),
     ).toBe('INVALID_OPTION')
   })
 
@@ -280,28 +281,28 @@ describe('unexpected qrcode failures', () => {
 describe('writeQr', () => {
   it('writes a PNG and returns an absolute path with the info', async () => {
     const path = join(dir, 'plain.png')
-    const info = await writeQr(SFC, path)
+    const info = await writeQr(PLEDGE, path)
     expect(info.path).toBe(path)
     expect(info.format).toBe('png')
     expect(info.size).toBe(720)
-    expect(decode(await readFile(path)).code.data).toBe(SFC)
+    expect(decode(await readFile(path)).code.data).toBe(PLEDGE)
   })
 
   it('normalises the path it returns', async () => {
-    const info = await writeQr(SFC, `${dir}/nested/../normalised.png`)
+    const info = await writeQr(PLEDGE, `${dir}/nested/../normalised.png`)
     expect(info.path).toBe(join(dir, 'normalised.png'))
   })
 
   it('infers SVG from the .svg extension', async () => {
     const path = join(dir, 'inferred.svg')
-    const info = await writeQr(SFC, path)
+    const info = await writeQr(PLEDGE, path)
     expect(info.format).toBe('svg')
     expect(await readFile(path, 'utf8')).toContain('<svg')
   })
 
   it('rejects a format that conflicts with the extension', async () => {
     await expect(
-      writeQr(SFC, join(dir, 'conflict.png'), { format: 'svg' }),
+      writeQr(PLEDGE, join(dir, 'conflict.png'), { format: 'svg' }),
     ).rejects.toMatchObject({
       code: 'INVALID_OPTION',
     })
@@ -309,28 +310,28 @@ describe('writeQr', () => {
 
   it('uses the format option for an unknown extension', async () => {
     const path = join(dir, 'unknown.dat')
-    const info = await writeQr(SFC, path, { format: 'svg' })
+    const info = await writeQr(PLEDGE, path, { format: 'svg' })
     expect(info.format).toBe('svg')
     expect(await readFile(path, 'utf8')).toContain('<svg')
   })
 
   it('falls back to png when there is neither an extension nor a format', async () => {
     const path = join(dir, 'extensionless')
-    const info = await writeQr(SFC, path)
+    const info = await writeQr(PLEDGE, path)
     expect(info.format).toBe('png')
-    expect(decode(await readFile(path)).code.data).toBe(SFC)
+    expect(decode(await readFile(path)).code.data).toBe(PLEDGE)
   })
 
   it('creates missing parent directories', async () => {
     const path = join(dir, 'a', 'b', 'c', 'deep.png')
-    await writeQr(SFC, path)
+    await writeQr(PLEDGE, path)
     expect((await readFile(path)).byteLength).toBeGreaterThan(0)
   })
 
   it('refuses to overwrite an existing file', async () => {
     const path = join(dir, 'exists.png')
     await writeFile(path, 'not a qr code')
-    await expect(writeQr(SFC, path)).rejects.toMatchObject({
+    await expect(writeQr(PLEDGE, path)).rejects.toMatchObject({
       code: 'FILE_EXISTS',
     })
     expect(await readFile(path, 'utf8')).toBe('not a qr code')
@@ -339,15 +340,15 @@ describe('writeQr', () => {
   it('overwrites with force', async () => {
     const path = join(dir, 'forced.png')
     await writeFile(path, 'not a qr code')
-    await writeQr(SFC, path, { force: true })
-    expect(decode(await readFile(path)).code.data).toBe(SFC)
+    await writeQr(PLEDGE, path, { force: true })
+    expect(decode(await readFile(path)).code.data).toBe(PLEDGE)
   })
 
   it('maps a failure to create the parent directory to WRITE_FAILED', async () => {
     const blocker = join(dir, 'blocker')
     await writeFile(blocker, 'a file where a directory is needed')
     await expect(
-      writeQr(SFC, join(blocker, 'child.png')),
+      writeQr(PLEDGE, join(blocker, 'child.png')),
     ).rejects.toMatchObject({
       code: 'WRITE_FAILED',
     })
@@ -356,14 +357,14 @@ describe('writeQr', () => {
   it('maps any other write failure to WRITE_FAILED', async () => {
     const path = join(dir, 'a-directory.png')
     await mkdir(path, { recursive: true })
-    await expect(writeQr(SFC, path, { force: true })).rejects.toMatchObject({
+    await expect(writeQr(PLEDGE, path, { force: true })).rejects.toMatchObject({
       code: 'WRITE_FAILED',
     })
   })
 
   it('validates options before touching the filesystem', async () => {
     await expect(
-      writeQr(SFC, join(dir, 'never.png'), { scale: 0 }),
+      writeQr(PLEDGE, join(dir, 'never.png'), { scale: 0 }),
     ).rejects.toMatchObject({
       code: 'INVALID_OPTION',
     })
@@ -389,20 +390,20 @@ describe('measure', () => {
   })
 
   it('carries the requested format through', () => {
-    expect(measure(SFC, { format: 'svg' }).format).toBe('svg')
-    expect(measure(SFC).size).toBe(720)
+    expect(measure(PLEDGE, { format: 'svg' }).format).toBe('svg')
+    expect(measure(PLEDGE).size).toBe(720)
   })
 
   it.each([
     ['empty data', '   ', {}, 'EMPTY_DATA'],
-    ['a bad scale', SFC, { scale: 0 }, 'INVALID_OPTION'],
+    ['a bad scale', PLEDGE, { scale: 0 }, 'INVALID_OPTION'],
     [
       'a bad EC level',
-      SFC,
+      PLEDGE,
       { scale: 8, errorCorrection: 'X' },
       'INVALID_OPTION',
     ],
-    ['a named color', SFC, { dark: 'red' }, 'INVALID_OPTION'],
+    ['a named color', PLEDGE, { dark: 'red' }, 'INVALID_OPTION'],
     [
       'an oversized image',
       'x'.repeat(300),
@@ -432,7 +433,7 @@ describe('measure without a renderer', () => {
       },
     }))
     const mod = await import('./core.js')
-    expect(mod.measure(SFC)).toMatchObject({
+    expect(mod.measure(PLEDGE)).toMatchObject({
       version: 5,
       modules: 37,
       size: 720,
