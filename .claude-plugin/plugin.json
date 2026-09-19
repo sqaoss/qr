@@ -1,5 +1,6 @@
 {
   "name": "qr",
+  "version": "1.0.0",
   "description": "Generate QR codes (PNG/SVG) from code, the terminal, or AI agents (MCP + skill).",
   "author": {
     "name": "SQA & Automation SRL"
