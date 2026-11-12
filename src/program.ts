@@ -77,8 +77,20 @@ function styleFrom(flags: StyleFlags): QrOptions {
   return style
 }
 
+/**
+ * Plain decimals only. `Number()` alone reads `''` as 0 and accepts `0x10` and
+ * `1e1`, so an unset shell variable in `--margin "$M"` would quietly render a
+ * code with no quiet zone. Anything else becomes `NaN`, which `core` rejects.
+ */
 function toNumber(value: string): number {
-  return Number(value)
+  return /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : Number.NaN
+}
+
+/** Whether `--json` was passed as a flag, not as data behind `--`. */
+function asksForJson(argv: string[]): boolean {
+  const separator = argv.indexOf('--')
+  const flags = separator === -1 ? argv : argv.slice(0, separator)
+  return flags.includes('--json')
 }
 
 function renderError(err: unknown, json: boolean, io: Io): number {
@@ -240,6 +252,9 @@ function addStyleOptions(command: Command): Command {
  */
 export async function run(argv: string[], io: Io): Promise<number> {
   let exitCode = 0
+  // Commander prints its own usage errors as plain text. Under `--json` they
+  // are held back and rendered below, so stderr stays one parseable object.
+  const jsonErrors = asksForJson(argv)
 
   const attempt = async (
     json: boolean,
@@ -264,7 +279,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
         io.stdout.write(str)
       },
       writeErr: (str) => {
-        io.stderr.write(str)
+        if (!jsonErrors) io.stderr.write(str)
       },
       getOutHelpWidth: () => HELP_WIDTH,
       getErrHelpWidth: () => HELP_WIDTH,
@@ -320,9 +335,13 @@ export async function run(argv: string[], io: Io): Promise<number> {
   try {
     await program.parseAsync(argv, { from: 'user' })
   } catch (err) {
-    // Commander has already written the help, version or usage error itself.
-    if (err instanceof CommanderError) return err.exitCode === 0 ? 0 : 1
-    return renderError(err, false, io)
+    if (!(err instanceof CommanderError)) return renderError(err, false, io)
+    // Commander has already written the help or version itself, and the usage
+    // error too unless it was held back for `--json`.
+    if (err.exitCode === 0) return 0
+    if (!jsonErrors) return 1
+    const message = err.message.replace(/^error: /, '')
+    return renderError(new QrError('INVALID_OPTION', message), true, io)
   }
   return exitCode
 }

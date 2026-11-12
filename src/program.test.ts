@@ -272,6 +272,31 @@ describe('qr generate', () => {
     expect(code).toBe(1)
     expect(stderr.text).toMatch(/^error \[INVALID_OPTION]: scale/)
   })
+
+  // `Number('')` is 0, so an unset shell variable in `--margin "$M"` used to
+  // produce a code with no quiet zone and exit 0.
+  it.each(['', ' ', '0x10', '1e1', '4px'])(
+    'rejects --margin %j rather than coercing it',
+    async (value) => {
+      const { io, stdout, stderr } = harness()
+
+      const code = await run(['generate', PLEDGE, '--margin', value], io)
+
+      expect(code).toBe(1)
+      expect(stdout.text).toBe('')
+      expect(stderr.text).toMatch(/^error \[INVALID_OPTION]: margin/)
+    },
+  )
+
+  it('still names a decimal or negative value in the error', async () => {
+    const decimal = harness()
+    await run(['generate', PLEDGE, '--scale', '2.5'], decimal.io)
+    expect(decimal.stderr.text).toMatch(/got 2\.5/)
+
+    const negative = harness()
+    await run(['generate', PLEDGE, '--scale=-1'], negative.io)
+    expect(negative.stderr.text).toMatch(/got -1/)
+  })
 })
 
 describe('qr generate with stdin', () => {
@@ -417,6 +442,35 @@ describe('qr operand parsing', () => {
 
     expect(code).toBe(1)
     expect(stderr.text).toMatch(/missing required argument/)
+  })
+
+  // A caller that asked for --json parses stderr on failure; a plain-text
+  // usage error would break that parse.
+  it.each([
+    [['generate', '--json'], /missing required argument 'data'/],
+    [['generate', PLEDGE, '--nope', '--json'], /unknown option '--nope'/],
+    [['batch', '--json'], /missing required argument/],
+    [['generate', PLEDGE, '--json', '--scale'], /argument missing/],
+  ])('renders the usage error of %j as JSON', async (argv, message) => {
+    const { io, stdout, stderr } = harness()
+
+    const code = await run(argv, io)
+
+    expect(code).toBe(1)
+    expect(stdout.text).toBe('')
+    const payload = JSON.parse(stderr.text)
+    expect(payload.error.code).toBe('INVALID_OPTION')
+    expect(payload.error.message).toMatch(message)
+    expect(payload.error.message).not.toMatch(/^error:/)
+  })
+
+  it('does not read a --json behind the -- separator as the flag', async () => {
+    const { io, stderr } = harness()
+
+    const code = await run(['generate', '--nope', '--', '--json'], io)
+
+    expect(code).toBe(1)
+    expect(stderr.text).toMatch(/^error: unknown option '--nope'/)
   })
 })
 
