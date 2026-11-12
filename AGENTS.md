@@ -158,7 +158,10 @@ MCP SDK **v2** (`@modelcontextprotocol/server`). `createServer()` returns a new
 registered with `registerTool(name, { title, description, inputSchema,
 outputSchema, annotations }, handler)` using full `z.object`s — raw zod shapes
 are deprecated in v2. Every handler runs inside a `run()` wrapper that maps a
-thrown `.code` onto an `isError` result, because the SDK drops `.code`.
+thrown `.code` onto an `isError` result, because the SDK drops `.code`. The
+code travels in the text block as `(code: X)`; a failure carries no
+`structuredContent`, because v1 SDK clients validate it against `outputSchema`
+even on an error and turn the mismatch into a protocol error.
 
 The three tools are `qr_generate` (read-only; rejects `size > 2048`),
 `qr_save` (never overwrites) and `qr_save_batch` (1–100 items; `isError` only

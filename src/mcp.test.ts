@@ -168,10 +168,20 @@ describe('mcp', () => {
 
       expect(result.isError).toBe(true)
       expect(textOf(result)).toMatch(/qr_save/)
-      expect(textOf(result)).toMatch(/INVALID_OPTION/)
-      expect(result.structuredContent).toMatchObject({
-        error: { code: 'INVALID_OPTION' },
-      })
+      expect(textOf(result)).toMatch(/\(code: INVALID_OPTION\)/)
+    })
+
+    // A v1 SDK client validates `structuredContent` against the tool's output
+    // schema even on an error, and turns a mismatch into a protocol error that
+    // hides the code. So a failure carries its code in the text block only.
+    it.each([
+      ['qr_generate', { data: PLEDGE, dark: 'red' }],
+      ['qr_save', { data: PLEDGE, path: 'nope.jpg' }],
+    ])('sends no structured content with a failed %s', async (name, args) => {
+      const result = await client.callTool({ name, arguments: args })
+
+      expect(result.isError).toBe(true)
+      expect(result.structuredContent).toBeUndefined()
     })
 
     it('maps a core error onto an isError result', async () => {
@@ -225,10 +235,7 @@ describe('mcp', () => {
       })
 
       expect(result.isError).toBe(true)
-      expect(textOf(result)).toMatch(/FILE_EXISTS/)
-      expect(result.structuredContent).toMatchObject({
-        error: { code: 'FILE_EXISTS' },
-      })
+      expect(textOf(result)).toMatch(/\(code: FILE_EXISTS\)/)
     })
 
     it('rejects a path that is neither .png nor .svg', async () => {
@@ -253,9 +260,7 @@ describe('mcp', () => {
 
       expect(result.isError).toBe(true)
       expect(textOf(result)).toMatch(/absolute/)
-      expect(result.structuredContent).toMatchObject({
-        error: { code: 'INVALID_OPTION' },
-      })
+      expect(textOf(result)).toMatch(/\(code: INVALID_OPTION\)/)
     })
 
     it('accepts a relative path when the cwd is a normal directory', async () => {

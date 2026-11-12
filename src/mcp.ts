@@ -90,13 +90,14 @@ function ok(
 }
 
 /**
- * A coded failure. The SDK skips output-schema validation when `isError` is
- * set, so the error envelope can differ from the tool's `outputSchema`.
+ * A coded failure, with the code in the text block and nothing structured. A
+ * v1 SDK client validates any `structuredContent` against the tool's
+ * `outputSchema`, error or not, and reports a mismatch as a protocol error —
+ * so an error envelope there would cost the caller both code and message.
  */
 function fail(message: string, code: string): ToolResult {
   return {
     content: [{ type: 'text', text: `${message} (code: ${code})` }],
-    structuredContent: { error: { code, message } },
     isError: true,
   }
 }
