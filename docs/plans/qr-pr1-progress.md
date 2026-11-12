@@ -18,18 +18,21 @@ handed back**; it must not be in the squash. Hard limits: no merge, no publish, 
 - `build: bump biome to 2.6.7 and migrate to the preset key` (rule sets diffed with `biome rage --linter`: identical
   between `recommended: true` and `preset: "recommended"` on 2.6.7; Markdown formatter off, YAML on with single quotes)
 
+- `ci: pin actions by SHA, pin bun, add Node 26 to the matrix` (`c027732`): checkout v7.0.1, setup-node v7.1.0,
+  setup-bun v2.2.0 by SHA; `.bun-version` 1.4.4; e2e on 22.12.0/22/24/26 Linux + 26 Windows; release job stays on 24.
+  Local gates on it: lint 0, coverage 0 (195), e2e 0 (13), plugin validate 0. CI for it was still queued at 11:53 UTC
+  (GitHub-side delay: check suites created, no runs yet). Node 26 on Windows is unproven until that run finishes.
+
 ## In progress
 
-- Two independent reviewers (code; package and release) on scratch copies of `57448ac`. Not back yet.
+- Two independent reviewers (code; package and release) on scratch copies of `57448ac`, resumed at 13:47 local after
+  the usage-limit cutoff. Not back yet.
 
 ## Remaining, in resume order
 
 1. Verify and fix reviewer findings, test-first, one commit each. If the reviewers were lost, rerun them.
-2. CI refresh (`ci:` commit): pin actions by SHA (checkout v7.0.1 `3d3c42e5aac5ba805825da76410c181273ba90b1`,
-   setup-node v7.1.0 `949feb2413d6458794dcd2491c4babbbce0c15c1`, setup-bun v2.2.0
-   `0c5077e51419868618aeaa5fe8019c62421857d6`), add Node 26 (LTS "Lithium") to the e2e matrix, decide on
-   `bun-version: latest`.
-3. All gates green locally on the final commit, push, wait for CI.
+2. Likely small fix regardless of the reviewers: `permissions: contents: read` on `ci.yml` and `dep-audit.yml`.
+3. All gates green locally on the final commit, push, wait for CI (check Node 26 on Windows).
 4. Update the PR description (test evidence, second review section, corrected bootstrap steps; facts below).
 5. Delete this file, final report.
 
