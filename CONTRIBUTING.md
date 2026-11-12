@@ -80,12 +80,14 @@ bad one raises `QrError` with an `INVALID_OPTION` code.
 Work in a git worktree rather than switching branches in place:
 
 ```bash
-git worktree add .worktrees/feat-my-change -b feat/my-change
-cd .worktrees/feat-my-change
+git fetch origin
+git worktree add .claude/worktrees/my-change -b feat/my-change origin/main
+cd .claude/worktrees/my-change
 bun install
 ```
 
-`.worktrees/` is gitignored.
+`.claude/worktrees/` is gitignored, and the test runner skips it, so a run in
+the main checkout never picks up a worktree's tests.
 
 ## Commit messages
 

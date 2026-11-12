@@ -10,7 +10,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     include: ['test/e2e/**/*.test.ts'],
-    exclude: ['node_modules/**', '.worktrees/**'],
+    exclude: ['node_modules/**', '.worktrees/**', '.claude/**'],
     // Each test spawns subprocesses; serialize files and allow generous time.
     fileParallelism: false,
     testTimeout: 120_000,

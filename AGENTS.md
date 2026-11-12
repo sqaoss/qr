@@ -211,8 +211,8 @@ the built `dist/` and the packed tarball under real Node.
 ## Git
 
 - **Work in a worktree**, never on `main`:
-  `git worktree add .worktrees/feat-<slug> -b feat/<slug>`. `.worktrees/` is
-  gitignored.
+  `git fetch origin && git worktree add .claude/worktrees/<slug> -b feat/<slug> origin/main`.
+  `.claude/worktrees/` is gitignored and excluded from both vitest configs.
 - Branch names are `<type>/<description>`, e.g. `feat/svg-output`.
 - **Conventional commits** — `feat:`, `fix:`, `docs:`, `test:`, `refactor:`,
   `chore:`, `ci:`. commitlint enforces this on the `commit-msg` hook, and

@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     // `test/e2e/**` is the slow, real-process suite — run it via its own config
     // (`bun run test:e2e`), never as part of the fast unit suite.
-    exclude: ['test/e2e/**', 'node_modules/**', '.worktrees/**'],
+    // Worktrees live under `.claude/worktrees/` (or the older `.worktrees/`):
+    // without these, a run in the main checkout also runs every worktree's tests.
+    exclude: ['test/e2e/**', 'node_modules/**', '.worktrees/**', '.claude/**'],
     reporters: ['default'],
     coverage: {
       provider: 'v8',
