@@ -42,6 +42,9 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
+      # The only suite that checks what is actually published: the packed
+      # tarball's files, exports, bin and types, under real Node.
+      - run: bun run test:e2e
       # Deliberately npm, not bun: this is the real npm publish path, and
       # `prepublishOnly` builds `dist/` before the tarball is packed.
       - run: npx semantic-release
