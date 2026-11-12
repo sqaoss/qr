@@ -23,10 +23,15 @@ handed back**; it must not be in the squash. Hard limits: no merge, no publish, 
   Local gates on it: lint 0, coverage 0 (195), e2e 0 (13), plugin validate 0. CI for it was still queued at 11:53 UTC
   (GitHub-side delay: check suites created, no runs yet). Node 26 on Windows is unproven until that run finishes.
 
+- Third session, spot-check on `63fadc5` (14:00 local): lint 0, typecheck 0, test:coverage 0 (195 tests, 98.11 / 93.65
+  / 95.71 / 98.35), test:e2e 0 (13), plugin validate 0 (ICON_MISSING warning), audit:prod 0 (`{}`), audit 1 (the 2
+  moderates below). CI on `63fadc5`: everything passes including `e2e (node 26, windows-latest)`; `full-audit` fails
+  and is `continue-on-error: true` (non-blocking by design, comment in `dep-audit.yml`).
+
 ## In progress
 
-- Two independent reviewers (code; package and release) on scratch copies of `57448ac`, resumed at 13:47 local after
-  the usage-limit cutoff. Not back yet.
+- Two independent reviewers (code; package and release) started 14:02 local on scratch copies of `63fadc5`
+  (`~/.claude/jobs/d6c24f1a/tmp/rev-code`, `rev-pkg`). No findings yet. If this session died, they are lost: rerun.
 
 ## Remaining, in resume order
 
