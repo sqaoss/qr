@@ -130,7 +130,9 @@ const styleShape = {
     .min(1)
     .max(64)
     .optional()
-    .describe('Pixels per QR module. Defaults to 16. Ignored for svg.'),
+    .describe(
+      'Pixels per QR module, 1-64. Defaults to 16. Sizes an svg too: the image edge is (modules + 2 * margin) * scale.',
+    ),
   margin: z
     .int()
     .min(0)
