@@ -39,6 +39,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Git worktrees
 .worktrees/
+.claude/worktrees/
 
 # Per-machine Claude settings overrides (shared settings.json is tracked)
 .claude/settings.local.json
