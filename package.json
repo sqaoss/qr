@@ -78,12 +78,12 @@
     "*.{ts,tsx,js,jsx}": [
       "biome check --write --no-errors-on-unmatched"
     ],
-    "*.{json,jsonc}": [
+    "*.{json,jsonc,yml,yaml}": [
       "biome format --write --no-errors-on-unmatched"
     ]
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
+    "@biomejs/biome": "2.6.7",
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
     "@modelcontextprotocol/client": "2.4.0",
