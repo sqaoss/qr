@@ -102,6 +102,11 @@ https://example.net/
 ]
 ```
 
+The keys are `data`, `out`, `format`, `scale`, `margin`, `errorCorrection`,
+`dark` and `light`. Any other key fails the whole file with `INVALID_BATCH`,
+so use `errorCorrection`, not `ec`. A `.png`/`.svg` extension on `out` sets
+that item's format, even against a `--format` default.
+
 `out` must be relative and stay inside `--out-dir`. Without it the name comes
 from the data: `https://www.example.com/sign-the-pledge` becomes
 `example-com-sign-the-pledge.png`. Colliding names get `-2`, `-3`… suffixes.
@@ -124,6 +129,9 @@ Start the server with `npx -y @sqaoss/qr mcp` (stdio). Three tools:
   working directory is the filesystem root, pass an absolute path.
 - `qr_save_batch` takes `{items: [{data, out?, …style}], outDir, defaults?}`,
   1–100 items. It is an error only when every item failed.
+- Every tool rejects an argument it does not know, so a misspelt option is an
+  error, never a silently default-styled code. A failed call is an `isError`
+  result whose text ends in `(code: <CODE>)`, with the codes listed below.
 
 ## Exit and error codes
 
@@ -140,7 +148,7 @@ Errors go to stderr as `error [CODE]: message`, or as
 | Code | What it means |
 |---|---|
 | `EMPTY_DATA` | The data was empty or whitespace |
-| `DATA_TOO_LONG` | Too much data for one symbol — lower `--ec` (the limit is 1273 bytes at `H`) |
+| `DATA_TOO_LONG` | Too much data for one symbol — lower `--ec` (the limit is 1273 bytes at `H`, 2953 at `L`) |
 | `INVALID_OPTION` | A flag was out of range, malformed, or conflicted with another |
 | `INVALID_BATCH` | The batch file was malformed, over a limit, or an `out` escaped the output directory |
 | `FILE_EXISTS` | The target exists and `--force` was not given |

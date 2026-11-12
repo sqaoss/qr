@@ -129,6 +129,11 @@ https://example.net/
 ]
 ```
 
+The keys are `data`, `out`, `format`, `scale`, `margin`, `errorCorrection`,
+`dark` and `light`; any other key is an `INVALID_BATCH` error rather than a
+silently ignored option. A `.png` or `.svg` extension on `out` decides the
+format of that item, even against a `--format` default.
+
 `out` has to be relative and stay inside `--out-dir`. Without it, the name comes
 from the data — `https://www.example.com/sign-the-pledge` becomes
 `example-com-sign-the-pledge.png` — and colliding names get `-2`, `-3`…
@@ -162,7 +167,9 @@ Code plugin. The MCP server exposes three tools:
 | `qr_save_batch` | Writes 1–100 files | `{outDir, succeeded, failed, results[]}` |
 
 `qr_save` never overwrites; an existing path comes back as a `FILE_EXISTS`
-error so the agent can pick another one.
+error so the agent can pick another one. A failed call is an `isError` result
+whose text ends in `(code: <CODE>)`, and every tool rejects an argument it does
+not know rather than dropping it.
 
 ### Claude Code
 
