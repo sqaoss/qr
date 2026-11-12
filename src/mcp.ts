@@ -8,7 +8,7 @@
  * failure and self-correct instead of the transport blowing up.
  */
 
-import { isAbsolute, parse } from 'node:path'
+import { isAbsolute, parse, resolve } from 'node:path'
 import { McpServer, type ToolAnnotations } from '@modelcontextprotocol/server'
 import {
   type StdioServerHandle,
@@ -223,6 +223,20 @@ function styleOf(args: QrOptions): QrOptions {
   return { format, scale, margin, errorCorrection, dark, light }
 }
 
+/**
+ * `core` words FILE_EXISTS for callers that can pass `force`. `qr_save` has no
+ * such option, so the hint would only send an agent looking for one.
+ */
+function withoutForceHint(error: unknown, path: string): never {
+  if (error instanceof QrError && error.code === 'FILE_EXISTS') {
+    throw new QrError(
+      'FILE_EXISTS',
+      `${resolve(path)} already exists, and qr_save never overwrites; choose another path`,
+    )
+  }
+  throw error
+}
+
 function assertImageExtension(path: string): void {
   if (!/\.(?:png|svg)$/i.test(path)) {
     throw new QrError(
@@ -297,7 +311,7 @@ export const tools: ToolDef[] = [
           args.data,
           args.path,
           styleOf(args),
-        )
+        ).catch((error: unknown) => withoutForceHint(error, args.path))
         return ok({ ...info, path })
       }),
   ),

@@ -261,6 +261,10 @@ describe('mcp', () => {
 
       expect(result.isError).toBe(true)
       expect(textOf(result)).toMatch(/\(code: FILE_EXISTS\)/)
+      // The tool has no force option, so the hint must not send the agent
+      // looking for one.
+      expect(textOf(result)).not.toMatch(/force/)
+      expect(textOf(result)).toMatch(/another path/)
     })
 
     it('rejects a path that is neither .png nor .svg', async () => {
