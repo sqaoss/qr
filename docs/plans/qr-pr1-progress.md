@@ -30,9 +30,41 @@ handed back**; it must not be in the squash. Hard limits: no merge, no publish, 
 
 ## In progress
 
-- Code reviewer returned 14:20 (findings C1-C15 below). Package/release reviewer started 14:02 on a scratch copy of
-  `63fadc5`, not back yet; if this session died it is lost: rerun only that one (ground: package.json, tarball,
-  release.yml, ci.yml, dep-audit.yml, action SHAs, plugin/skill manifests, docs accuracy, public-repo hygiene).
+- Both reviewers are back (14:20 code, 14:31 package). Fixing in this order: remaining C items, then P items, then
+  step 3 of the resume order. Pushed so far: C1 `a8f0f98`, C2 `a0b4099`, C3 `7d2c44e`, C7-mcp + C15b `f2cb7ec`.
+
+## Package and release findings (reviewer 2, files identical to `a8f0f98`; status as below)
+
+- P1 precondition, separatio: `NPM_TOKEN` does not exist (repo, org, environments all empty). Merging without it fails
+  in verifyConditions (before any tag: safe), but `@semantic-release/github` then opens a public 'release is failing'
+  issue. `sqaoss/plugins` already lists `qr`, so the plugin is broken until 1.0.0 is on npm.
+- P2 major, todo (verify in node_modules/semantic-release/index.js ~90, ~202-215 and @semantic-release/npm
+  verify-auth.js): semantic-release commits + tags + pushes BEFORE publish, and token verification is only
+  `npm whoami`. A token that authenticates but cannot publish strands `v1.0.0` and the release commit; a re-run
+  refuses ('local branch is behind') and a dispatch finds nothing to release. Fix: recovery steps in the PR
+  description (delete remote tag v1.0.0, dispatch Release on main; a manual npm publish needs --provenance=false).
+- P3 major, separatio (repo setting, not mine to change): SECURITY.md's only channel is private vulnerability
+  reporting and `gh api repos/sqaoss/qr/private-vulnerability-reporting` says `enabled: false`.
+- P4 major but not for 1.0.0, decide: nothing bumps `.claude-plugin/plugin.json` version; a set version pins plugin
+  users to it, so after 1.0.1 they keep the 1.0.0 skill text. Fix: npm `version` lifecycle script that rewrites the
+  version line + add the file to the git plugin assets (no new dependency).
+- P5 minor, todo: release job runs lint/typecheck/test but not `test:e2e`, the only suite that checks the tarball.
+- P6 minor, defer: release job holds contents:write + id-token for all steps; workflow_dispatch from any ref. Split
+  verify/release + an environment restricted to main: do with the trusted-publishing follow-up.
+- P7 minor, todo (verify DNS): `package.json` author email is on `sqaoss.dev`, which is NXDOMAIN (anyone can
+  register it). Also used as test data in `src/batch.test.ts`.
+- P8 minor, todo: docs say `.worktrees/`, the work happens in `.claude/worktrees/`; vitest `exclude` covers only
+  `.worktrees`, so tests of nested `.claude/worktrees/*` run from the main checkout; the two tracked
+  `.claude/hookify.*.local.md` rules block every edit outside `.worktrees/` and name a skill this repo does not have.
+- P9 minor, todo: issue-template `config.yml` links to Discussions, which is off (404).
+- P10 = C9. P11 = C10. P12 = delete this file (planned).
+- P13 nit, todo: no top-level `permissions:` in ci.yml / dep-audit.yml (repo default is already read).
+- P14 nit, todo: `full-audit` leaves a permanent red check (job-level continue-on-error); move it to the step.
+- P15 nit, todo: `.gitignore` has `_.log` and `report.[0-9]_...` (mangled `*`).
+- Also seen by reviewer 2: `-o /proc/nope/x.png` hangs (Node's recursive mkdir on procfs, Node 26.10); EPIPE = C5.
+- Checked fine: dist imports vs dependencies, tarball = 15 files (no tests/maps), shebang + 755, action SHAs match
+  their tags and are the latest releases, Node 24.22.3 satisfies the plugins, provenance prerequisites, plugin
+  order, no branch protection (GITHUB_TOKEN push works), feat => 1.0.0, docs examples vs behaviour.
 
 ## Code review findings (reviewer 1, on `63fadc5`; status: todo / fixed <sha> / rejected + why)
 
