@@ -128,7 +128,7 @@ Examples: `feat/svg-output`, `fix/batch-collisions`, `chore/update-deps`.
 4. Open a PR and fill in the template.
 
 CI runs lint, typecheck and the unit suite, plus the e2e suite on Node 22.12.0,
-22 and 24 on Linux and on Node 24 on Windows. Releases are automatic from
+22, 24 and 26 on Linux and on Node 26 on Windows. Releases are automatic from
 `main` via semantic-release — never bump the version by hand.
 
 ## Security
