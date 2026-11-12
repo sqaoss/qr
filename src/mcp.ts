@@ -8,7 +8,7 @@
  * failure and self-correct instead of the transport blowing up.
  */
 
-import { parse, resolve } from 'node:path'
+import { isAbsolute, parse } from 'node:path'
 import { McpServer, type ToolAnnotations } from '@modelcontextprotocol/server'
 import {
   type StdioServerHandle,
@@ -201,7 +201,7 @@ const WRITES_FILES: ToolAnnotations = {
  * turns a relative path into a write at `/` — so those are refused outright.
  */
 function assertResolvablePath(path: string): void {
-  if (resolve(path) === path) return
+  if (isAbsolute(path)) return
   const cwd = process.cwd()
   if (cwd === parse(cwd).root) {
     throw new QrError(

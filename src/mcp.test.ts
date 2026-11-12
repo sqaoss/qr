@@ -263,6 +263,20 @@ describe('mcp', () => {
       expect(textOf(result)).toMatch(/\(code: INVALID_OPTION\)/)
     })
 
+    it('accepts an absolute path that is not normalised when the cwd is the root', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(parse(resolve('.')).root)
+
+      const result = await client.callTool({
+        name: 'qr_save',
+        arguments: { data: PLEDGE, path: `${dir}/sub/../dotdot.png` },
+      })
+
+      expect(result.isError).toBeFalsy()
+      expect(result.structuredContent).toMatchObject({
+        path: join(dir, 'dotdot.png'),
+      })
+    })
+
     it('accepts a relative path when the cwd is a normal directory', async () => {
       vi.spyOn(process, 'cwd').mockReturnValue(dir)
 
@@ -361,6 +375,19 @@ describe('mcp', () => {
         succeeded: 0,
         failed: 2,
       })
+    })
+
+    it('accepts an absolute outDir with a trailing separator when the cwd is the root', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(parse(resolve('.')).root)
+      const outDir = join(dir, 'batch-trailing')
+
+      const result = await client.callTool({
+        name: 'qr_save_batch',
+        arguments: { items: [{ data: PLEDGE }], outDir: `${outDir}/` },
+      })
+
+      expect(result.isError).toBeFalsy()
+      expect(result.structuredContent).toMatchObject({ outDir, succeeded: 1 })
     })
 
     it('rejects an empty item list', async () => {
