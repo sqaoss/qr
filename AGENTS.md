@@ -106,6 +106,8 @@ request without paying for pixels nobody receives.
 `writeQr` takes the format from a `.png`/`.svg` extension and raises
 `INVALID_OPTION` when an explicit `format` contradicts it. Parent directories
 are created; writes use `wx` (so `EEXIST` becomes `FILE_EXISTS`) unless `force`.
+A write that fails part-way removes the file it created, so a retry is not
+answered with `FILE_EXISTS`; under `force` the target is left as it is.
 
 ### `src/batch.ts`
 

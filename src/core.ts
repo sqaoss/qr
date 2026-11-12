@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { type FileHandle, mkdir, open, unlink } from 'node:fs/promises'
 import { dirname, extname, resolve } from 'node:path'
 import QRCode from 'qrcode'
 
@@ -159,16 +159,17 @@ function resolveOptions(opts: QrOptions): Required<QrOptions> {
   }
 }
 
-function mapRendererError(err: unknown): QrError {
+function mapRendererError(err: unknown, level: ErrorCorrection): QrError {
   const message = err instanceof Error ? err.message : String(err)
   if (/no input text/i.test(message)) {
     return new QrError('EMPTY_DATA', 'data must be a non-empty string')
   }
   if (/too big to be stored/i.test(message)) {
-    return new QrError(
-      'DATA_TOO_LONG',
-      `${message}. Lower the error correction level to fit more (the byte limit is ${MAX_BYTES_AT_H} at H).`,
-    )
+    const hint =
+      level === 'L'
+        ? `Level L already holds the most: ${MAX_BYTES_AT_L} bytes.`
+        : `Lower the error correction level to fit more (the byte limit is ${MAX_BYTES_AT_H} at H, ${MAX_BYTES_AT_L} at L).`
+    return new QrError('DATA_TOO_LONG', `${message}. ${hint}`)
   }
   return new QrError('INTERNAL', message)
 }
@@ -196,7 +197,7 @@ function measureResolved(data: string, o: Required<QrOptions>): QrInfo {
   try {
     symbol = QRCode.create(data, { errorCorrectionLevel: o.errorCorrection })
   } catch (err) {
-    throw mapRendererError(err)
+    throw mapRendererError(err, o.errorCorrection)
   }
 
   const modules = symbol.modules.size
@@ -258,7 +259,7 @@ export async function generate(
     })
     return { format: 'png', data: new Uint8Array(buffer), info }
   } catch (err) {
-    throw mapRendererError(err)
+    throw mapRendererError(err, errorCorrection)
   }
 }
 
@@ -295,8 +296,35 @@ export async function writeQr(
     )
   }
 
+  const handle = await openForWrite(absolute, force === true)
   try {
-    await writeFile(absolute, result.data, { flag: force ? 'w' : 'wx' })
+    await handle.writeFile(result.data)
+    await handle.close()
+  } catch (err) {
+    await handle.close().catch(() => {})
+    // Without `force` the file was created by this call (`wx`), so the
+    // truncated remains are ours to remove. Left behind, they would turn the
+    // retry into FILE_EXISTS.
+    if (force !== true) await unlink(absolute).catch(() => {})
+    throw writeFailed(absolute, err)
+  }
+
+  return { ...result.info, path: absolute }
+}
+
+function writeFailed(absolute: string, err: unknown): QrError {
+  return new QrError(
+    'WRITE_FAILED',
+    `could not write ${absolute}: ${(err as Error).message}`,
+  )
+}
+
+async function openForWrite(
+  absolute: string,
+  force: boolean,
+): Promise<FileHandle> {
+  try {
+    return await open(absolute, force ? 'w' : 'wx')
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new QrError(
@@ -304,11 +332,6 @@ export async function writeQr(
         `${absolute} already exists; use force to overwrite it`,
       )
     }
-    throw new QrError(
-      'WRITE_FAILED',
-      `could not write ${absolute}: ${(err as Error).message}`,
-    )
+    throw writeFailed(absolute, err)
   }
-
-  return { ...result.info, path: absolute }
 }

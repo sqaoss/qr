@@ -232,6 +232,18 @@ describe('generate validation', () => {
     expect(caught?.message).toMatch(/error correction/i)
   })
 
+  it('does not suggest a lower EC level when the level is already L', async () => {
+    let caught: QrError | undefined
+    try {
+      await generate('x'.repeat(3000), { errorCorrection: 'L' })
+    } catch (err) {
+      caught = err as QrError
+    }
+    expect(caught?.code).toBe('DATA_TOO_LONG')
+    expect(caught?.message).not.toMatch(/lower the error correction/i)
+    expect(caught?.message).toMatch(/2953/)
+  })
+
   it('still encodes the largest symbol there is: 7089 digits at L', () => {
     const info = measure('1'.repeat(7089), { errorCorrection: 'L', scale: 1 })
     expect(info.version).toBe(40)
@@ -416,6 +428,62 @@ describe('writeQr', () => {
     ).rejects.toMatchObject({
       code: 'INVALID_OPTION',
     })
+  })
+})
+
+describe('writeQr when the write fails part-way', () => {
+  afterEach(() => {
+    vi.doUnmock('node:fs/promises')
+    vi.resetModules()
+  })
+
+  /** Lets the file be created for real, then fails the write like a full disk. */
+  async function coreWithFailingWrite() {
+    vi.resetModules()
+    vi.doMock('node:fs/promises', async () => {
+      const actual =
+        await vi.importActual<typeof import('node:fs/promises')>(
+          'node:fs/promises',
+        )
+      return {
+        ...actual,
+        open: async (...args: Parameters<typeof actual.open>) => {
+          const handle = await actual.open(...args)
+          handle.writeFile = async () => {
+            await handle.write('truncated')
+            throw Object.assign(new Error('ENOSPC: no space left on device'), {
+              code: 'ENOSPC',
+            })
+          }
+          return handle
+        },
+      }
+    })
+    return import('./core.js')
+  }
+
+  // Left behind, the truncated file turns the retry into FILE_EXISTS — and
+  // through `qr_save`, which never overwrites, into a path that is lost.
+  it('removes the file it created', async () => {
+    const mod = await coreWithFailingWrite()
+    const path = join(dir, 'partial.png')
+
+    await expect(mod.writeQr(PLEDGE, path)).rejects.toMatchObject({
+      code: 'WRITE_FAILED',
+      message: expect.stringContaining('ENOSPC'),
+    })
+    await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('does not delete a file it was told to overwrite', async () => {
+    const mod = await coreWithFailingWrite()
+    const path = join(dir, 'forced-partial.png')
+    await writeFile(path, 'the previous file')
+
+    await expect(
+      mod.writeQr(PLEDGE, path, { force: true }),
+    ).rejects.toMatchObject({ code: 'WRITE_FAILED' })
+    expect((await readFile(path)).byteLength).toBeGreaterThan(0)
   })
 })
 
