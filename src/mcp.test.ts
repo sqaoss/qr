@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, parse, resolve } from 'node:path'
 import {
@@ -18,7 +18,7 @@ import {
   it,
   vi,
 } from 'vitest'
-import { createServer, startStdio } from './mcp.js'
+import { createServer, startStdio, tools } from './mcp.js'
 
 const PLEDGE = 'https://www.example.com/sign-the-pledge'
 const INVITE = 'https://chat.example.org/invite/7Qm3kZp9XrT2vN8'
@@ -182,6 +182,31 @@ describe('mcp', () => {
 
       expect(result.isError).toBe(true)
       expect(result.structuredContent).toBeUndefined()
+    })
+
+    // A dropped key is a silent wrong answer: `errorCorection: 'L'` would
+    // come back as a level-H code that looks like a success.
+    it.each([
+      ['qr_generate', { data: PLEDGE, errorCorection: 'L' }, 'errorCorection'],
+      ['qr_save', { data: PLEDGE, path: 'strict.png', size: 300 }, 'size'],
+      [
+        'qr_save_batch',
+        { items: [{ data: PLEDGE, output: 'a.png' }], outDir: 'strict' },
+        'output',
+      ],
+      [
+        'qr_save_batch',
+        { items: [{ data: PLEDGE }], outDir: 'strict', defaults: { ec: 'L' } },
+        'ec',
+      ],
+    ])('rejects an unknown argument to %s', async (name, args, key) => {
+      // Relative paths land in the temp dir if the call is wrongly accepted.
+      vi.spyOn(process, 'cwd').mockReturnValue(dir)
+      const result = await client.callTool({ name, arguments: args })
+
+      expect(result.isError).toBe(true)
+      expect(textOf(result)).toMatch(/Input validation error/)
+      expect(textOf(result)).toContain(key)
     })
 
     it('maps a core error onto an isError result', async () => {
@@ -511,5 +536,31 @@ describe('qr_generate cost guard', () => {
 
     expect(result.isError).toBe(true)
     expect(rendered).toEqual([])
+  })
+})
+
+describe('qr_save without the schema layer', () => {
+  let dir: string
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'qr-mcp-direct-'))
+  })
+
+  afterAll(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  // `tools` is exported, so a host can call a handler directly. "Never
+  // overwrites" must not depend on zod having stripped a stray `force`.
+  it('never overwrites, even when handed force', async () => {
+    const tool = tools.find((entry) => entry.name === 'qr_save')
+    if (!tool) throw new Error('qr_save is not registered')
+    const path = join(dir, 'keep.png')
+    await writeFile(path, 'not a qr code')
+
+    const result = await tool.handler({ data: PLEDGE, path, force: true })
+
+    expect(result.isError).toBe(true)
+    expect(await readFile(path, 'utf8')).toBe('not a qr code')
   })
 })

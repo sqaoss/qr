@@ -16,7 +16,7 @@ import {
 } from '@modelcontextprotocol/server/stdio'
 import { z } from 'zod'
 import { type BatchItem, writeBatch } from './batch.js'
-import { generate, measure, QrError, writeQr } from './core.js'
+import { generate, measure, QrError, type QrOptions, writeQr } from './core.js'
 import { VERSION } from './version.js'
 
 const INSTRUCTIONS =
@@ -211,6 +211,16 @@ function assertResolvablePath(path: string): void {
   }
 }
 
+/**
+ * Only the style fields. The handlers are exported, so what reaches `core`
+ * must not depend on the schema layer having removed everything else — a
+ * stray `force` would otherwise turn `qr_save` into an overwrite.
+ */
+function styleOf(args: QrOptions): QrOptions {
+  const { format, scale, margin, errorCorrection, dark, light } = args
+  return { format, scale, margin, errorCorrection, dark, light }
+}
+
 function assertImageExtension(path: string): void {
   if (!/\.(?:png|svg)$/i.test(path)) {
     throw new QrError(
@@ -227,7 +237,7 @@ export const tools: ToolDef[] = [
       title: 'Generate a QR code',
       description:
         'Render a QR code and return the image itself: PNG as an image block, SVG as text. Use qr_save instead when the image should end up in a file, or when it would be larger than 2048px.',
-      inputSchema: z.object({ data: dataField, ...styleShape }),
+      inputSchema: z.strictObject({ data: dataField, ...styleShape }),
       outputSchema: infoSchema,
       annotations: READ_ONLY,
     },
@@ -235,14 +245,15 @@ export const tools: ToolDef[] = [
       run(async () => {
         // Measured before rendering: a rejected call must not cost the agent's
         // host the seconds and hundreds of megabytes a large render allocates.
-        const planned = measure(args.data, args)
+        const style = styleOf(args)
+        const planned = measure(args.data, style)
         if (planned.size > MAX_INLINE_SIZE) {
           throw new QrError(
             'INVALID_OPTION',
             `the image would be ${planned.size}px wide, above the ${MAX_INLINE_SIZE}px inline limit; lower scale or margin, or use qr_save to write it to a file instead`,
           )
         }
-        const result = await generate(args.data, args)
+        const result = await generate(args.data, style)
         return ok(
           { ...result.info },
           result.format === 'svg'
@@ -264,7 +275,7 @@ export const tools: ToolDef[] = [
       title: 'Save a QR code to a file',
       description:
         'Render a QR code and write it to a path ending in .png or .svg. It never overwrites an existing file — on FILE_EXISTS, pick another path. Prefer an absolute path.',
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         data: dataField,
         path: z
           .string()
@@ -280,7 +291,11 @@ export const tools: ToolDef[] = [
       run(async () => {
         assertImageExtension(args.path)
         assertResolvablePath(args.path)
-        const { path, ...info } = await writeQr(args.data, args.path, args)
+        const { path, ...info } = await writeQr(
+          args.data,
+          args.path,
+          styleOf(args),
+        )
         return ok({ ...info, path })
       }),
   ),
@@ -291,10 +306,10 @@ export const tools: ToolDef[] = [
       title: 'Save many QR codes',
       description:
         'Render up to 100 QR codes into one directory. Each item may override the shared defaults, and may set "out" — a relative path inside outDir. Items are independent: one failure does not stop the rest.',
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         items: z
           .array(
-            z.object({
+            z.strictObject({
               data: dataField,
               out: z
                 .string()
@@ -314,7 +329,7 @@ export const tools: ToolDef[] = [
             'Directory the images are written into; created if needed.',
           ),
         defaults: z
-          .object(styleShape)
+          .strictObject(styleShape)
           .optional()
           .describe('Style applied to every item that does not override it.'),
       }),
