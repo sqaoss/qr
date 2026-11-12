@@ -30,8 +30,46 @@ handed back**; it must not be in the squash. Hard limits: no merge, no publish, 
 
 ## In progress
 
-- Two independent reviewers (code; package and release) started 14:02 local on scratch copies of `63fadc5`
-  (`~/.claude/jobs/d6c24f1a/tmp/rev-code`, `rev-pkg`). No findings yet. If this session died, they are lost: rerun.
+- Code reviewer returned 14:20 (findings C1-C15 below). Package/release reviewer started 14:02 on a scratch copy of
+  `63fadc5`, not back yet; if this session died it is lost: rerun only that one (ground: package.json, tarball,
+  release.yml, ci.yml, dep-audit.yml, action SHAs, plugin/skill manifests, docs accuracy, public-repo hygiene).
+
+## Code review findings (reviewer 1, on `63fadc5`; status: todo / fixed <sha> / rejected + why)
+
+Each was reproduced by the reviewer against `dist/` on Node 26. Verify before fixing; fix test-first, one commit each.
+
+- C1 major, todo (confirmed by me): no length cap on `data`. `measure('a1'.repeat(500_000))` = 4.7 s, 1.9 GB RSS
+  before `DATA_TOO_LONG`; 4 MB on CLI stdin = V8 OOM exit 134; 2 MB over MCP stdio = SIGABRT. Fix: in `requireData`
+  throw `DATA_TOO_LONG` when `data.length > 7089` (max capacity of any symbol: numeric, 40-L) before `QRCode.create`.
+- C2 major if true, todo (verify with a real v1 client `@modelcontextprotocol/sdk` 1.x): `fail()` in `mcp.ts` returns
+  `structuredContent: {error}` that violates the tool's `outputSchema`; v2 client skips validation on `isError`, v1
+  is believed to validate whenever `structuredContent` is present. Fix: drop `structuredContent` from `fail()`.
+- C3 minor, todo: `assertResolvablePath` uses `resolve(path) === path`, so with cwd `/` an absolute `outDir` with a
+  trailing slash or a `..` segment is refused with "pass an absolute path". Fix: `isAbsolute(path)`.
+- C4 minor, todo: failed write (EFBIG/ENOSPC) leaves a truncated file; the retry then gets `FILE_EXISTS`. Fix: unlink
+  the file this call created when the `wx` write fails. (`--force` over an existing file is non-atomic too; decide.)
+- C5 minor, todo: EPIPE on stdout (`qr generate x -o - | head -c 0`) = unhandled 'error' event + stack. Fix in
+  `cli.ts`.
+- C6 minor, todo: `--margin ""` becomes margin 0 (`Number('')`); `0x10`, `1e1` accepted. Fix `toNumber`.
+- C7 minor, todo: unknown keys silently dropped in batch JSON (`sclae`, `ec`, `output`) and in the MCP inputs
+  (`z.object` strips). Fix: `INVALID_BATCH` on unknown keys; `z.strictObject` for MCP inputs.
+- C8 minor, todo: batch default `--format png` makes an item with `out: "x.svg"` fail (`INVALID_OPTION` conflict);
+  docs say per-item fields win. Fix: an item's `out` extension beats an inherited default format.
+- C9 minor, todo: MCP `scale` description says "Ignored for svg" but it sizes the SVG and counts for both size caps.
+- C10 minor, todo: commander usage errors ignore `--json` (plain `error: missing required argument 'data'`), against
+  SKILL.md's "errors are JSON under --json".
+- C11 minor, decide: `-o pic.jpg` / batch `out: "x.jpg"` / `-o newdir/` silently write a PNG under that name.
+- C12 nit, decide: `qr batch -` without `--kind` treats piped JSON as one text line (docs say `--kind` is needed).
+- C13 nit, decide: `FILE_EXISTS` says "use force" for a directory target, for `-o ""`, and in `qr_save` (no force).
+- C14 nit, decide: library called with wrong types (`generate('x', null)`, `writeBatch([null])`) throws bare
+  `TypeError`; `DATA_TOO_LONG` hint says "lower the error correction level" when already at L; lone surrogate gives
+  `INTERNAL: URI malformed`.
+- C15 nit, decide: batch `out` accepts Windows device names / trailing dots (only derived names are guarded); the
+  exported `tools[].handler` passes `args` straight to `writeQr`, so `force: true` works when zod is bypassed.
+- Checked fine by the reviewer: option validation, size reporting, encoding round-trips, batch parsing and limits,
+  traversal (POSIX and win32 semantics), collisions, `fileNameFor`, exit codes, MCP lifecycle and protocol versions
+  2024-11-05 to 2025-11-25. Symlinked dirs inside `outDir` and MCP writing anywhere match SECURITY.md ("not a
+  sandbox").
 
 ## Remaining, in resume order
 
