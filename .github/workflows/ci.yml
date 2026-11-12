@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Nothing here writes to the repository; stated rather than left to the
+# repository's default token permissions.
+permissions:
+  contents: read
+
 # Husky installs git hooks in `prepare`, which has nothing to hook into on a
 # runner and fails when the repo is checked out without hooks enabled.
 env:
