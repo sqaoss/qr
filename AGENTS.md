@@ -131,7 +131,9 @@ export function writeBatch(
 A leading BOM is stripped and CRLF accepted in both formats. Lines mode skips
 blanks and `#` comments. `out` must be relative and stay inside `outDir`;
 collisions are resolved case-insensitively with `-2`, `-3`… A failed item never
-stops the run. Limits: 1,000 items, 1 MiB.
+stops the run. Limits: 1,000 items, 1 MiB. An unknown key in a JSON item is an
+`INVALID_BATCH`, not a dropped option. An item's `out` extension wins over a
+default `format`; only the item's own `format` can contradict it.
 
 ### `src/program.ts`
 

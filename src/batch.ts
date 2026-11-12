@@ -52,6 +52,8 @@ const STYLE_KEYS = [
   'light',
 ] as const
 
+const ITEM_KEYS: ReadonlySet<string> = new Set(['data', 'out', ...STYLE_KEYS])
+
 export function kindFromPath(path: string): BatchKind {
   return extname(path).toLowerCase() === '.json' ? 'json' : 'lines'
 }
@@ -90,6 +92,15 @@ function itemFromObject(
     throw new QrError(
       'INVALID_BATCH',
       `item ${index} needs a non-empty "data" string`,
+    )
+  }
+  // Dropping an unknown key would render a misspelt option with the default
+  // style and still report success.
+  const unknown = Object.keys(raw).filter((key) => !ITEM_KEYS.has(key))
+  if (unknown.length > 0) {
+    throw new QrError(
+      'INVALID_BATCH',
+      `item ${index} has unknown ${unknown.length === 1 ? 'key' : 'keys'} ${unknown.map((key) => JSON.stringify(key)).join(', ')}; the keys are ${[...ITEM_KEYS].join(', ')}`,
     )
   }
   const item: BatchItem = { data: raw.data }
@@ -211,6 +222,12 @@ function relativeOut(out: string, outDir: string): string {
   return rel
 }
 
+function namesItsFormat(out: string | undefined): boolean {
+  if (out === undefined) return false
+  const ext = extname(out).toLowerCase()
+  return ext === '.png' || ext === '.svg'
+}
+
 /** Returns the name to use; the caller reserves it once the write succeeds. */
 function uniqueName(name: string, taken: Set<string>): string {
   const ext = extname(name)
@@ -240,6 +257,11 @@ export async function writeBatch(
 
   for (const { data, out, ...itemStyle } of items) {
     const style: QrOptions = { ...o.defaults, ...itemStyle }
+    // An item that names its file has chosen its format: a batch-wide default
+    // must not contradict the extension, only the item's own `format` can.
+    if (itemStyle.format === undefined && namesItsFormat(out)) {
+      delete style.format
+    }
     try {
       const wanted =
         out === undefined

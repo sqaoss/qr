@@ -119,6 +119,11 @@ describe('parseBatch json', () => {
     ['["ok",{"data":""}]', 'item 1'],
     ['["ok",{"data":42}]', 'item 1'],
     ['["ok",""]', 'item 1'],
+    // A misspelt key would otherwise be dropped and the item rendered with
+    // the default style: a success that is not what was asked for.
+    ['["ok",{"data":"x","sclae":2}]', '"sclae"'],
+    ['[{"data":"x","ec":"L"}]', 'item 0'],
+    ['[{"data":"x","output":"a.png","force":true}]', '"output", "force"'],
   ])('rejects %s and names the index', (text, mention) => {
     let message = ''
     try {
@@ -327,6 +332,34 @@ describe('writeBatch', () => {
     expect(first.info.errorCorrection).toBe('L')
     expect(first.info.size).toBe((first.info.modules + 2) * 2)
     expect(second.info.size).toBe((second.info.modules + 2) * 4)
+  })
+
+  it('lets the extension of out win over a default format', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch(
+      [{ data: PLEDGE, out: 'vector.svg' }, { data: INVITE }],
+      { outDir, defaults: { format: 'png' } },
+    )
+    const [first, second] = report.results
+    if (!first?.ok || !second?.ok)
+      throw new Error(
+        `expected both items to succeed: ${JSON.stringify(report)}`,
+      )
+    expect(first.info.format).toBe('svg')
+    expect(await readFile(join(outDir, 'vector.svg'), 'utf8')).toContain('<svg')
+    expect(second.info.format).toBe('png')
+  })
+
+  it('still rejects an item whose own format contradicts its out', async () => {
+    const outDir = await tempDir()
+    const report = await writeBatch(
+      [{ data: PLEDGE, out: 'vector.svg', format: 'png' }],
+      { outDir },
+    )
+    expect(report.results[0]).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_OPTION' },
+    })
   })
 
   it('refuses to overwrite an existing file unless forced', async () => {
