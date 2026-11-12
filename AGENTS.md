@@ -54,7 +54,13 @@ src/*.test.ts     colocated unit tests
 test/e2e/         built dist/ and the packed tarball, under real Node
 skills/qr/        the agent skill
 .claude-plugin/   plugin.json — the Claude Code plugin manifest
+scripts/          sync-plugin-version.mjs — the npm `version` lifecycle script
 ```
+
+`plugin.json` carries a `version`, and Claude Code keeps a plugin's users on
+that version until it changes. So every release bumps it: semantic-release runs
+`npm version`, npm runs `scripts/sync-plugin-version.mjs`, and the release
+commit includes the manifest. Never edit that version by hand.
 
 ## Module contracts
 
