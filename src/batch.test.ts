@@ -209,8 +209,8 @@ describe('fileNameFor', () => {
   })
 
   it('keeps a non-http URL as plain text', () => {
-    expect(fileNameFor('mailto:ops@sqaoss.dev', 'png')).toBe(
-      'mailto-ops-sqaoss-dev.png',
+    expect(fileNameFor('mailto:ops@example.com', 'png')).toBe(
+      'mailto-ops-example-com.png',
     )
   })
 

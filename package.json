@@ -34,7 +34,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "license": "MIT",
-  "author": "SQA & Automation SRL <ops@sqaoss.dev>",
+  "author": "SQA & Automation SRL (https://github.com/sqaoss)",
   "homepage": "https://github.com/sqaoss/qr",
   "repository": {
     "type": "git",
