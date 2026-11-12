@@ -1,0 +1,61 @@
+name: Dependency Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, Mondays at 06:00 UTC — surfaces newly-disclosed advisories
+    # against the frozen lockfile without waiting for the next PR.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Nothing here writes to the repository; stated rather than left to the
+# repository's default token permissions.
+permissions:
+  contents: read
+
+# Husky installs git hooks in `prepare`, which has nothing to hook into on a
+# runner and fails when the repo is checked out without hooks enabled.
+env:
+  HUSKY: 0
+
+jobs:
+  # Blocking gate: only the dependencies that actually ship to users
+  # (`dependencies`, not `devDependencies`). A known-vulnerable runtime dep
+  # should fail the build. `bun audit --prod` always exits 0, so it is not a
+  # gate; `bun audit --production --json` exits non-zero with a JSON report on
+  # a shipped-dep advisory (and prints `{}` with exit 0 when the tree is clean).
+  prod-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - name: Audit production dependencies
+        run: bun run audit:prod
+
+  # Informational: the full tree including devDependencies (semantic-release,
+  # vitest, etc.). These never ship to users, so an advisory here should not
+  # block a PR — it's surfaced for visibility and triage. Non-blocking: the
+  # audit step may fail without failing the job, and a warning annotation
+  # carries the news instead. A permanently red check for a dev-only advisory
+  # only teaches people to ignore red.
+  full-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - name: Audit all dependencies (incl. dev)
+        id: audit
+        continue-on-error: true
+        run: bun run audit
+      - name: Flag advisories in the full tree
+        if: steps.audit.outcome == 'failure'
+        run: echo "::warning title=Dev dependency advisories::bun audit reported advisories in the full dependency tree. See the audit step of this job. Shipped dependencies are gated by prod-audit."

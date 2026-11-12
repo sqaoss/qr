@@ -1,0 +1,61 @@
+name: Bug report
+description: Report something that isn't working as documented
+title: '[bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in the details
+        below so we can reproduce it quickly. For security vulnerabilities,
+        do **not** open an issue — see [SECURITY.md](../blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+      placeholder: I ran `qr generate "https://example.com" -o out.png` and got ... but expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact commands you ran, in order. If it's an MCP tool, name the tool and paste the arguments.
+      placeholder: |
+        1. npx -y @sqaoss/qr generate "https://example.com" -o out.png --json
+        2. ...
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: qr-version
+    attributes:
+      label: qr version
+      description: Output of `qr --version` (or `npx -y @sqaoss/qr --version`).
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node version
+      description: Output of `node --version` (the package requires Node >= 22.12).
+      placeholder: v24.10.0
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: OS / platform
+      placeholder: macOS 15, Ubuntu 24.04, Windows 11, ...
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output or logs
+      description: Paste the command output. Redact any API keys or tokens first.
+      render: shell
+    validations:
+      required: false
