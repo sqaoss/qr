@@ -86,7 +86,7 @@
     "@biomejs/biome": "2.5.14",
     "@commitlint/cli": "21.2.2",
     "@commitlint/config-conventional": "21.2.2",
-    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/client": "2.4.0",
     "@semantic-release/changelog": "7.0.0",
     "@semantic-release/git": "11.0.1",
     "@types/node": "^22",
@@ -103,9 +103,9 @@
     "vitest": "5.0.1"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/server": "2.4.0",
     "commander": "15.0.0",
     "qrcode": "1.5.4",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   }
 }
