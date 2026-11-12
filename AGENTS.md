@@ -94,7 +94,10 @@ Validation is strict on purpose: `qrcode` silently falls back on bad input — a
 unknown EC level becomes `M`, `dark: 'red'` becomes transparent, a number is
 read as hex. So `scale` is an integer 1–64, `margin` an integer 0–32, colors
 must match `^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$`, and a computed `size`
-above 8192 px is an `INVALID_OPTION`.
+above 8192 px is an `INVALID_OPTION`. Data longer than 7,089 characters — the
+capacity of the largest symbol — is `DATA_TOO_LONG` before the encoder runs,
+because `qrcode` spends seconds and gigabytes on a megabyte of mixed text
+before it gives up.
 
 `measure` runs the encode but not the render, so a caller with a tighter budget
 than the 8192 px cap — `qr_generate` and its 2048 px inline limit — can refuse a

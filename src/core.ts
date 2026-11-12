@@ -66,6 +66,15 @@ const MAX_IMAGE_SIZE = 8192
 /** Byte capacity of a version-40 symbol at error correction level H. */
 const MAX_BYTES_AT_H = 1273
 
+/** Byte capacity of a version-40 symbol at error correction level L. */
+const MAX_BYTES_AT_L = 2953
+
+/**
+ * The most characters any symbol holds: digits only, version 40, level L.
+ * Every other mode and level holds fewer, so nothing longer can ever fit.
+ */
+const MAX_CHARACTERS = 7089
+
 function show(value: unknown): string {
   return typeof value === 'string' ? JSON.stringify(value) : String(value)
 }
@@ -167,6 +176,15 @@ function mapRendererError(err: unknown): QrError {
 function requireData(data: string): void {
   if (typeof data !== 'string' || data.trim() === '') {
     throw new QrError('EMPTY_DATA', 'data must be a non-empty string')
+  }
+  // Checked here, not left to the encoder: its segment optimiser is
+  // super-linear on mixed text, so a megabyte of input costs seconds and
+  // gigabytes of memory before it reports "too big".
+  if (data.length > MAX_CHARACTERS) {
+    throw new QrError(
+      'DATA_TOO_LONG',
+      `data is ${data.length} characters long; no QR code holds more than ${MAX_CHARACTERS} digits, or ${MAX_BYTES_AT_L} bytes of text`,
+    )
   }
 }
 

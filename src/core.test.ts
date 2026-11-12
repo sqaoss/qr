@@ -231,6 +231,54 @@ describe('generate validation', () => {
     expect(caught?.code).toBe('DATA_TOO_LONG')
     expect(caught?.message).toMatch(/error correction/i)
   })
+
+  it('still encodes the largest symbol there is: 7089 digits at L', () => {
+    const info = measure('1'.repeat(7089), { errorCorrection: 'L', scale: 1 })
+    expect(info.version).toBe(40)
+  })
+
+  it('rejects data longer than any symbol can hold', async () => {
+    const tooLong = '1'.repeat(7090)
+    expect(await codeOf(generate(tooLong, { errorCorrection: 'L' }))).toBe(
+      'DATA_TOO_LONG',
+    )
+    expect(() => measure(tooLong, { errorCorrection: 'L' })).toThrow(
+      expect.objectContaining({
+        code: 'DATA_TOO_LONG',
+        message: expect.stringContaining('7090'),
+      }),
+    )
+  })
+})
+
+describe('oversized data', () => {
+  afterEach(() => {
+    vi.doUnmock('qrcode')
+    vi.resetModules()
+  })
+
+  // The encoder's segment optimiser is super-linear on mixed text: a megabyte
+  // of it costs seconds and gigabytes before it reports "too big".
+  it('is refused before it reaches the encoder', async () => {
+    vi.resetModules()
+    vi.doMock('qrcode', () => ({
+      default: {
+        create: () => {
+          throw new Error('the encoder ran')
+        },
+        toBuffer: () => Promise.reject(new Error('the renderer ran')),
+        toString: () => Promise.reject(new Error('the renderer ran')),
+      },
+    }))
+    const mod = await import('./core.js')
+    const huge = 'a1'.repeat(500_000)
+    expect(() => mod.measure(huge)).toThrow(
+      expect.objectContaining({ code: 'DATA_TOO_LONG' }),
+    )
+    await expect(mod.generate(huge)).rejects.toMatchObject({
+      code: 'DATA_TOO_LONG',
+    })
+  })
 })
 
 describe('unexpected qrcode failures', () => {
